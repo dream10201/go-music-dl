@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/guohuiyuan/music-lib/model"
-	"github.com/guohuiyuan/music-lib/utils"
-	"net/url"
 	"regexp"
 )
 
@@ -16,21 +14,7 @@ func Parse(link string) (*model.Song, error) { return defaultMigu.Parse(link) }
 
 // Search 搜索歌曲
 func (m *Migu) Search(keyword string) ([]model.Song, error) {
-	params := url.Values{}
-	params.Set("ua", "Android_migu")
-	params.Set("version", "5.0.1")
-	params.Set("text", keyword)
-	params.Set("pageNo", "1")
-	params.Set("pageSize", "10")
-	params.Set("searchSwitch", `{"song":1,"album":0,"singer":0,"tagSong":0,"mvSong":0,"songlist":0,"bestShow":1}`)
-
-	apiURL := "http://pd.musicapp.migu.cn/MIGUM2.0/v1.0/content/search_all.do?" + params.Encode()
-
-	body, err := utils.Get(apiURL,
-		utils.WithHeader("User-Agent", UserAgent),
-		utils.WithHeader("Referer", Referer),
-		utils.WithHeader("Cookie", m.cookie),
-	)
+	body, err := m.searchRequest(keyword, `{"song":1,"album":0,"singer":0,"tagSong":0,"mvSong":0,"songlist":0,"bestShow":1}`, 1)
 	if err != nil {
 		return nil, err
 	}

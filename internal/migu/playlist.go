@@ -117,7 +117,7 @@ func (m *Migu) searchPlaylists(keyword string, page, limit int) ([]model.Playlis
 	// 切换开关：songlist:1
 	params.Set("searchSwitch", `{"song":0,"album":0,"singer":0,"tagSong":0,"mvSong":0,"songlist":1,"bestShow":1}`)
 
-	apiURL := "http://pd.musicapp.migu.cn/MIGUM2.0/v1.0/content/search_all.do?" + params.Encode()
+	apiURL := miguSearchAPI + "?" + params.Encode()
 
 	body, err := utils.Get(apiURL,
 		utils.WithHeader("User-Agent", UserAgent),
