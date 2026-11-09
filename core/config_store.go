@@ -125,6 +125,7 @@ func CloseConfigDB() error {
 	}
 	closeErr := sqlDB.Close()
 	configDB = nil
+	invalidateDedupCache()
 	configInitErr = nil
 	configInit = sync.Once{}
 	return closeErr
@@ -157,6 +158,7 @@ func ensureConfigDB() error {
 		}
 
 		configDB = db
+		invalidateDedupCache()
 		configInitErr = migrateLegacyCookies()
 	})
 

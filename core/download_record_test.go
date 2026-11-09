@@ -159,16 +159,33 @@ func TestLegacyDedupEntryWithoutRelPathStaysDownloaded(t *testing.T) {
 }
 
 func TestDownloadLookupFindsLegacyTraditionalChineseKey(t *testing.T) {
-	index := DownloadDedupIndex{
-		"久石讓 - Summer 久石讓": "久石讓 - Summer 久石讓.flac",
+	newDownloadDedupTestDB(t)
+	if err := initDownloadRecordTable(); err != nil {
+		t.Fatalf("initDownloadRecordTable: %v", err)
+	}
+	legacy := DownloadDedupEntry{SongKey: "久石讓 - Summer 久石讓", Name: "Summer 久石讓", Artist: "久石讓", RelPath: "久石讓 - Summer 久石讓.flac"}
+	if err := configDB.Create(&legacy).Error; err != nil {
+		t.Fatalf("seed legacy entry: %v", err)
 	}
 	song := &model.Song{Name: "Summer 久石让", Artist: "久石让"}
 
+	index, err := LoadDownloadDedupSet()
+	if err != nil {
+		t.Fatalf("LoadDownloadDedupSet: %v", err)
+	}
 	if !IsSongDownloaded(song, index) {
 		t.Fatal("simplified song should match a legacy traditional Chinese key")
 	}
-	if got := SongFileRelPath(song, index); got != "久石讓 - Summer 久石讓.flac" {
+	if got := SongFileRelPath(song, index); got != legacy.RelPath {
 		t.Fatalf("SongFileRelPath = %q", got)
+	}
+
+	var keys []string
+	if err := configDB.Model(&DownloadDedupEntry{}).Pluck("song_key", &keys).Error; err != nil {
+		t.Fatalf("pluck keys: %v", err)
+	}
+	if len(keys) != 1 || keys[0] != SongKey(song) {
+		t.Fatalf("legacy key should be rewritten to %q, got %v", SongKey(song), keys)
 	}
 }
 

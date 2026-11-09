@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/guohuiyuan/music-lib/model"
@@ -44,6 +45,17 @@ type DownloadDedupEntry struct {
 // 下载目录内相对路径（空字符串表示旧数据，路径未知）。
 type DownloadDedupIndex map[string]string
 
+var (
+	dedupCacheMu sync.Mutex
+	dedupCache   DownloadDedupIndex
+)
+
+func invalidateDedupCache() {
+	dedupCacheMu.Lock()
+	dedupCache = nil
+	dedupCacheMu.Unlock()
+}
+
 func initDownloadRecordTable() error {
 	if err := ensureConfigDB(); err != nil {
 		return err
@@ -75,6 +87,9 @@ func SaveDownloadRecordWithRelPath(name, artist, source, status, errStr, relPath
 		Error:  cleanDownloadRecordText(errStr),
 	}
 
+	if record.Status == DownloadStatusSuccess {
+		defer invalidateDedupCache()
+	}
 	return configDB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&record).Error; err != nil {
 			return err
@@ -93,6 +108,7 @@ func SaveDownloadDedupEntry(name, artist, relPath string) error {
 	if err := initDownloadRecordTable(); err != nil {
 		return err
 	}
+	defer invalidateDedupCache()
 	return saveDownloadDedupEntry(configDB, name, artist, relPath)
 }
 
@@ -195,13 +211,6 @@ func lookupSongKey(song *model.Song, index DownloadDedupIndex) (string, string, 
 	key := SongKey(song)
 	if relPath, ok := index[key]; ok {
 		return key, relPath, true
-	}
-
-	normalizedKey := normalizeVariantText(key)
-	for existingKey, relPath := range index {
-		if normalizeVariantText(existingKey) == normalizedKey {
-			return existingKey, relPath, true
-		}
 	}
 	return "", "", false
 }
@@ -322,16 +331,37 @@ func forgetDownloadedSongWhere(keys []string, relPath string) error {
 	if len(conditions) == 0 {
 		return nil
 	}
+	defer invalidateDedupCache()
 	return configDB.Where(strings.Join(conditions, " OR "), args...).Delete(&DownloadDedupEntry{}).Error
 }
 
-// LoadDownloadDedupSet loads the SQLite de-duplication index. On first use after
-// upgrading, it migrates existing successful history rows into the new index.
+// LoadDownloadDedupSet returns a private copy of the SQLite de-duplication index.
+// The index is cached in memory and reloaded after any write to the dedup table.
 func LoadDownloadDedupSet() (DownloadDedupIndex, error) {
 	if err := initDownloadRecordTable(); err != nil {
 		return nil, err
 	}
 
+	dedupCacheMu.Lock()
+	defer dedupCacheMu.Unlock()
+	if dedupCache == nil {
+		index, err := loadDownloadDedupIndex()
+		if err != nil {
+			return nil, err
+		}
+		dedupCache = index
+	}
+	index := make(DownloadDedupIndex, len(dedupCache))
+	for key, relPath := range dedupCache {
+		index[key] = relPath
+	}
+	return index, nil
+}
+
+// loadDownloadDedupIndex reads the dedup table. On first use after upgrading it
+// migrates successful history rows into the table, and rewrites song keys written
+// before key normalization so lookups stay a single map access.
+func loadDownloadDedupIndex() (DownloadDedupIndex, error) {
 	var entries []DownloadDedupEntry
 	if err := configDB.Find(&entries).Error; err != nil {
 		return nil, err
@@ -358,8 +388,20 @@ func LoadDownloadDedupSet() (DownloadDedupIndex, error) {
 
 	index := make(DownloadDedupIndex, len(entries))
 	for _, entry := range entries {
-		if key := cleanDownloadRecordText(entry.SongKey); key != "" {
-			index[key] = cleanDownloadRelPath(entry.RelPath)
+		key := cleanDownloadRecordText(entry.SongKey)
+		if key == "" {
+			continue
+		}
+		relPath := cleanDownloadRelPath(entry.RelPath)
+		normalized := normalizeVariantText(key)
+		if normalized == key {
+			index[key] = relPath
+			continue
+		}
+		_ = configDB.Exec("UPDATE OR IGNORE download_dedup_entries SET song_key = ? WHERE song_key = ?", normalized, entry.SongKey).Error
+		_ = configDB.Exec("DELETE FROM download_dedup_entries WHERE song_key = ?", entry.SongKey).Error
+		if existing, ok := index[normalized]; !ok || existing == "" {
+			index[normalized] = relPath
 		}
 	}
 	return index, nil
@@ -374,6 +416,7 @@ func PruneDownloadDedup(outDir string, keep map[string]string) (int, error) {
 	if err := initDownloadRecordTable(); err != nil {
 		return 0, err
 	}
+	defer invalidateDedupCache()
 
 	var entries []DownloadDedupEntry
 	if err := configDB.Find(&entries).Error; err != nil {
