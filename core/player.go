@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/guohuiyuan/go-music-dl/internal/migu"
+	"github.com/guohuiyuan/music-lib/migu"
 	"github.com/guohuiyuan/music-lib/model"
 )
 

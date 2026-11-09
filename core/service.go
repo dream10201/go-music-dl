@@ -19,7 +19,6 @@ import (
 	"unicode/utf16"
 
 	"github.com/dhowden/tag"
-	"github.com/guohuiyuan/go-music-dl/internal/migu"
 	"github.com/guohuiyuan/music-lib/apple"
 	"github.com/guohuiyuan/music-lib/bilibili"
 	"github.com/guohuiyuan/music-lib/fivesing"
@@ -27,6 +26,7 @@ import (
 	"github.com/guohuiyuan/music-lib/joox"
 	"github.com/guohuiyuan/music-lib/kugou"
 	"github.com/guohuiyuan/music-lib/kuwo"
+	"github.com/guohuiyuan/music-lib/migu"
 	"github.com/guohuiyuan/music-lib/model"
 	"github.com/guohuiyuan/music-lib/netease"
 	"github.com/guohuiyuan/music-lib/qianqian"
