@@ -19,7 +19,7 @@ const DOWNLOAD_DIR_PRESET_VALUES = [
   "data/downloads",
   "downloads",
   "D:/Music/Downloads",
-  "/home/appuser/data",
+  "/app/data",
   "/sdcard/Music",
   "/storage/emulated/0/Music",
   "/sdcard/Download",

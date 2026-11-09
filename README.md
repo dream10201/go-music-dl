@@ -39,7 +39,7 @@ Web 的搜索、试听、下载和歌单浏览无需登录；修改设置或 Coo
 docker compose up -d --pull always --remove-orphans
 ```
 
-访问 `http://localhost:8080`。首次启动会自动创建 `./data` 并配置好容器写权限；Compose 不依赖仓库里的 Dockerfile 或其他文件，只需 `docker-compose.yml` 和镜像即可启动。修改源码后可使用 `docker compose -f docker-compose.dev.yml up -d --build` 本地构建。
+访问 `http://localhost:8080`。首次启动会自动创建 `./data`；Compose 不依赖仓库里的 Dockerfile 或其他文件，只需 `docker-compose.yml` 和镜像即可启动。修改源码后可使用 `docker compose -f docker-compose.dev.yml up -d --build` 本地构建。
 
 ### AI / Agent 调用
 

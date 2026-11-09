@@ -10,7 +10,7 @@ services:
     volumes:
       - type: bind
         source: ./data
-        target: /home/appuser/data
+        target: /app/data
         bind:
           create_host_path: true
     environment:
