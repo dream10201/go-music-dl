@@ -3,9 +3,9 @@
 const API_ROOT = window.API_ROOT;
 const WEB_SETTINGS_KEY = "musicdl:web_settings";
 const INSPECT_REQUEST_DELAY_MS = 20;
-const INSPECT_MAX_CONCURRENCY = 50;
-const INSPECT_SOURCE_MAX_CONCURRENCY = 32;
-const INSPECT_SOURCE_MIN_CONCURRENCY = 4;
+const INSPECT_MAX_CONCURRENCY = 3;
+const INSPECT_SOURCE_MAX_CONCURRENCY = 3;
+const INSPECT_SOURCE_MIN_CONCURRENCY = 1;
 const INSPECT_RETRY_BASE_DELAY_MS = 1200;
 const INSPECT_RETRY_MAX_DELAY_MS = 30000;
 const INSPECT_MAX_RETRIES = 2;
@@ -1568,7 +1568,7 @@ function bindSongCardCovers(root = document) {
     if (songActionFoldMedia.matches) {
       ensureSongActionFold(card);
     }
-    queueInspectSong(card);
+    observeSongCardForInspect(card);
 
     const coverWrap = card.querySelector(".cover-wrapper");
     if (!coverWrap) return;
@@ -4226,6 +4226,7 @@ function finishInspectSong(controller) {
 }
 
 function cancelPendingSongInspections() {
+  inspectViewportObserver?.disconnect();
   inspectPendingTimers.forEach((timer) => window.clearTimeout(timer));
   inspectPendingTimers.clear();
 
@@ -4252,6 +4253,29 @@ function cancelPendingSongInspections() {
   inspectSourceStates.forEach((state) => {
     state.active = 0;
   });
+}
+
+const inspectViewportObserver =
+  typeof IntersectionObserver === "function"
+    ? new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            inspectViewportObserver.unobserve(entry.target);
+            queueInspectSong(entry.target);
+          }
+        },
+        { rootMargin: "300px 0px" },
+      )
+    : null;
+
+function observeSongCardForInspect(card) {
+  if (!card) return;
+  if (!inspectViewportObserver) {
+    queueInspectSong(card);
+    return;
+  }
+  inspectViewportObserver.observe(card);
 }
 
 function queueInspectSong(card, delay = 0) {
@@ -9972,6 +9996,72 @@ async function downloadWholeCollection(button) {
     await openDownloadRecordsModal();
   } catch (error) {
     showToast("整单下载失败", error.message || "请稍后重试", "error", downloadNoticeDuration());
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalHTML;
+  }
+}
+
+async function postSearchDownload(payload) {
+  const response = await fetch(`${API_ROOT}/api/downloads/queue/search`, {
+    method: "POST",
+    headers: {"Content-Type":"application/json", "X-Requested-With":"XMLHttpRequest"},
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok || data.error) throw new Error(data.error || "请求失败");
+  return data;
+}
+
+function searchDownloadUnit(type) {
+  return type === "album" ? "张专辑" : "个歌单";
+}
+
+async function downloadAllSearchResults(button) {
+  if (!button || button.disabled) return;
+  const params = new URLSearchParams(window.location.search);
+  const payload = {
+    q: (params.get("q") || "").trim(),
+    type: params.get("type") || "song",
+    sources: params.getAll("sources"),
+    exact_artist: params.get("exact_artist") || "",
+    embed: !!webSettings.embedDownload,
+  };
+  if (!payload.q) {
+    showToast("无法下载", "缺少搜索关键词", "error", downloadNoticeDuration());
+    return;
+  }
+  const originalHTML = button.innerHTML;
+  button.disabled = true;
+  button.textContent = "正在统计全部结果…";
+  try {
+    const preview = await postSearchDownload({...payload, dry_run: true});
+    let message;
+    if (preview.type === "song") {
+      if (!preview.songs) throw new Error("搜索结果中没有可下载的歌曲");
+      message = `将把「${payload.q}」的全部搜索结果 ${preview.songs} 首歌曲（含所有分页）加入下载队列？`;
+      if (preview.skipped_local) message += `已跳过本地音乐 ${preview.skipped_local} 首。`;
+    } else {
+      const unit = searchDownloadUnit(preview.type);
+      message = `将下载「${payload.q}」搜索到的全部 ${preview.containers} ${unit}（含所有分页`;
+      message += preview.tracks ? `，约 ${preview.tracks} 首歌曲）` : "）";
+      message += "，每个会先获取完整曲目再加入下载队列，可能需要一些时间。确定继续？";
+    }
+    if (!(await confirmAppAction({title: "确认一键下载", message, confirmLabel: "开始下载"}))) return;
+    button.textContent = "正在加入下载队列…";
+    const data = await postSearchDownload({...payload, token: preview.token, request_id: createDownloadRequestID()});
+    let detail = `共 ${data.total} 首，新增 ${data.added} 首，队列中已存在 ${data.existing} 首`;
+    if (data.containers) detail = `${data.containers} ${searchDownloadUnit(data.type)}，` + detail;
+    if (data.skipped_local) detail += `，跳过本地音乐 ${data.skipped_local} 首`;
+    if (data.skipped_invalid) detail += `，跳过缺少 ID 或音源 ${data.skipped_invalid} 首`;
+    if (data.failed_containers) {
+      detail += `，${data.failed_containers} ${searchDownloadUnit(data.type)}获取曲目失败`;
+      if (Array.isArray(data.failed_labels) && data.failed_labels.length) detail += `（${data.failed_labels.join("、")}${data.failed_containers > data.failed_labels.length ? "等" : ""}）`;
+    }
+    showToast(data.failed_containers ? "已加入下载队列（部分失败）" : "全部结果已加入下载队列", detail + "。", data.failed_containers ? "warning" : "success", downloadNoticeDuration());
+    await openDownloadRecordsModal();
+  } catch (error) {
+    showToast("一键下载失败", error.message || "请稍后重试", "error", downloadNoticeDuration());
   } finally {
     button.disabled = false;
     button.innerHTML = originalHTML;

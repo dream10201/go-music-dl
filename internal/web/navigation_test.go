@@ -581,9 +581,9 @@ func TestInspectQueueUsesAdaptivePerSourceLimitingAndIsCancelable(t *testing.T) 
 	js := string(content)
 	for _, want := range []string{
 		`const INSPECT_REQUEST_DELAY_MS = 20;`,
-		`const INSPECT_MAX_CONCURRENCY = 50;`,
-		`const INSPECT_SOURCE_MAX_CONCURRENCY = 32;`,
-		`const INSPECT_SOURCE_MIN_CONCURRENCY = 4;`,
+		`const INSPECT_MAX_CONCURRENCY = 3;`,
+		`const INSPECT_SOURCE_MAX_CONCURRENCY = 3;`,
+		`const INSPECT_SOURCE_MIN_CONCURRENCY = 1;`,
 		`const inspectActiveRequests = new Map();`,
 		`inspectActiveRequests.size < INSPECT_MAX_CONCURRENCY`,
 		`const inspectSourceStates = new Map();`,
