@@ -102,7 +102,7 @@ func PreparePlaybackSource(song *model.Song) (playURL string, tempFile string, e
 			return info.URL, "", nil
 		}
 
-		data, decErr := fetchMiguAudio(info)
+		data, decErr := FetchMiguAudio(info)
 		if decErr != nil {
 			return "", "", decErr
 		}

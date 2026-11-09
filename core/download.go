@@ -312,10 +312,11 @@ func FetchDecryptedMiguAudio(song *model.Song) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return fetchMiguAudio(info)
+	return FetchMiguAudio(info)
 }
 
-func fetchMiguAudio(info *migu.DownloadInfo) ([]byte, error) {
+// FetchMiguAudio 下载咪咕音频流，Z3D 加密流解密后返回明文字节。
+func FetchMiguAudio(info *migu.DownloadInfo) ([]byte, error) {
 	if info == nil {
 		return nil, errors.New("migu download info is nil")
 	}

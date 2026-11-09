@@ -19,6 +19,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
+	"github.com/guohuiyuan/music-lib/migu"
 	"github.com/guohuiyuan/music-lib/model"
 	"github.com/guohuiyuan/music-lib/soda"
 	"github.com/guohuiyuan/music-lib/utils"
@@ -1179,6 +1180,21 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		})
 	})
 
+	// serveDecodedAudio 输出已在服务端完整解密的音频；此类流无法按 Range 透传，只能整段返回。
+	serveDecodedAudio := func(c *gin.Context, tempSong *model.Song, finalData []byte, streamPlayback bool, settings core.WebSettings) {
+		ext := core.DetectAudioExt(finalData)
+		filename := core.BuildDownloadFilename(tempSong, ext, settings.DownloadFilenameTemplate)
+		if !streamPlayback && core.WebDAVConfigured(settings) {
+			if err := core.UploadSongToWebDAV(settings, filename, finalData); err != nil {
+				c.Header("X-MusicDL-Warning", err.Error())
+			}
+		}
+		if !streamPlayback {
+			setDownloadHeader(c, filename)
+		}
+		http.ServeContent(c.Writer, c.Request, filename, time.Now(), bytes.NewReader(finalData))
+	}
+
 	downloadHandler := func(c *gin.Context) {
 		id := c.Query("id")
 		source := c.Query("source")
@@ -1315,30 +1331,39 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 					return
 				}
 			}
-			ext := core.DetectAudioExt(finalData)
-			filename := core.BuildDownloadFilename(tempSong, ext, settings.DownloadFilenameTemplate)
-			if !streamPlayback && core.WebDAVConfigured(settings) {
-				if err := core.UploadSongToWebDAV(settings, filename, finalData); err != nil {
-					c.Header("X-MusicDL-Warning", err.Error())
+			serveDecodedAudio(c, tempSong, finalData, streamPlayback, settings)
+			return
+		}
+
+		var downloadUrl string
+		if source == "migu" {
+			info, err := migu.New(core.CM.Get("migu")).GetDownloadInfo(tempSong)
+			if err != nil {
+				c.String(404, "Failed to get URL")
+				return
+			}
+			if info.Encrypted {
+				finalData, err := core.FetchMiguAudio(info)
+				if err != nil {
+					c.String(502, "Upstream stream error")
+					return
 				}
+				serveDecodedAudio(c, tempSong, finalData, streamPlayback, settings)
+				return
 			}
-			if !streamPlayback {
-				setDownloadHeader(c, filename)
+			downloadUrl = info.URL
+		} else {
+			dlFunc := core.GetDownloadFunc(source)
+			if dlFunc == nil {
+				c.String(400, "Unknown source")
+				return
 			}
-			http.ServeContent(c.Writer, c.Request, filename, time.Now(), bytes.NewReader(finalData))
-			return
-		}
-
-		dlFunc := core.GetDownloadFunc(source)
-		if dlFunc == nil {
-			c.String(400, "Unknown source")
-			return
-		}
-
-		downloadUrl, err := dlFunc(tempSong)
-		if err != nil {
-			c.String(404, "Failed to get URL")
-			return
+			var err error
+			downloadUrl, err = dlFunc(tempSong)
+			if err != nil {
+				c.String(404, "Failed to get URL")
+				return
+			}
 		}
 
 		if rangeFetch, handled, rangeErr := core.NewSourceRangeFetch(downloadUrl, source, c.GetHeader("Range")); rangeErr != nil {
