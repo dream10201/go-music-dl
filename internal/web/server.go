@@ -407,6 +407,7 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 	playlistSourceTabs, _ := c.Get("PlaylistSourceTabs")
 	topListSources, _ := c.Get("TopListSources")
 	topListCurrent, _ := c.Get("TopListCurrent")
+	isSearchResults, _ := c.Get("IsSearchResults")
 
 	settings := core.GetWebSettings()
 	songs = filterSongsForDisplay(songs, settings)
@@ -507,6 +508,7 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 		"PlaylistSourceTabs":      playlistSourceTabs,
 		"TopListSources":          topListSources,
 		"TopListCurrent":          topListCurrent,
+		"IsSearchResults":         isSearchResults,
 		"UserPlaylistSupported":   userPlaylistSupported,
 	})
 }

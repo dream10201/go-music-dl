@@ -799,175 +799,12 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		searchType := c.DefaultQuery("type", "song")
 		exactArtist := strings.TrimSpace(c.Query("exact_artist"))
 		sources := c.QueryArray("sources")
-		var importCollection *importCollectionMeta
-
 		if len(sources) == 0 {
 			sources = defaultSourcesForSearchType(searchType)
 		}
-
-		var allSongs []model.Song
-		var allPlaylists []model.Playlist
-		var errorMsg string
-
-		if strings.HasPrefix(keyword, "http") {
-			src := core.DetectSource(keyword)
-			if src == "" {
-				errorMsg = "不支持该链接的解析，或无法识别来源"
-			} else {
-				parsed := false
-				parseFn := core.GetParseFunc(src)
-				if parseFn != nil {
-					if song, err := parseFn(keyword); err == nil {
-						allSongs = append(allSongs, *song)
-						searchType = "song"
-						parsed = true
-					}
-				}
-				if !parsed {
-					parsePlaylistFn := core.GetParsePlaylistFunc(src)
-					if parsePlaylistFn != nil {
-						if playlist, songs, err := parsePlaylistFn(keyword); err == nil {
-							if searchType == "playlist" {
-								allPlaylists = append(allPlaylists, *playlist)
-							} else {
-								allSongs = append(allSongs, songs...)
-								searchType = "song"
-								if playlist != nil {
-									playlistLink := strings.TrimSpace(playlist.Link)
-									importCollection = importCollectionFromQuery(c, collectionContentPlaylist, src, playlist.ID, playlistLink, len(songs))
-									applyImportCollectionFallback(importCollection, playlist, len(songs), keyword)
-								}
-							}
-							parsed = true
-						}
-					}
-				}
-				if !parsed {
-					parseAlbumFn := core.GetParseAlbumFunc(src)
-					if parseAlbumFn != nil {
-						if album, songs, err := parseAlbumFn(keyword); err == nil {
-							if searchType == "album" {
-								allPlaylists = append(allPlaylists, *album)
-							} else {
-								allSongs = append(allSongs, songs...)
-								searchType = "song"
-								if album != nil {
-									albumLink := strings.TrimSpace(album.Link)
-									importCollection = importCollectionFromQuery(c, collectionContentAlbum, src, album.ID, albumLink, len(songs))
-									applyImportCollectionFallback(importCollection, album, len(songs), keyword)
-								}
-							}
-							parsed = true
-						}
-					}
-				}
-				if !parsed {
-					errorMsg = fmt.Sprintf("解析失败: 暂不支持 %s 平台的此链接类型或解析出错", src)
-				}
-			}
-		} else {
-			var wg sync.WaitGroup
-			var mu sync.Mutex
-			sourceErrors := make(map[string]string)
-
-			for _, src := range sources {
-				if isLocalMusicSource(src) {
-					continue
-				}
-				wg.Add(1)
-				go func(s string) {
-					defer wg.Done()
-					if searchType == "playlist" {
-						fn := core.GetPlaylistSearchFunc(s)
-						if fn != nil {
-							res, err := fn(keyword)
-							if err == nil {
-								for i := range res {
-									res[i].Source = s
-								}
-								mu.Lock()
-								allPlaylists = append(allPlaylists, res...)
-								mu.Unlock()
-							} else {
-								mu.Lock()
-								sourceErrors[s] = err.Error()
-								mu.Unlock()
-							}
-						} else {
-							mu.Lock()
-							sourceErrors[s] = "该来源不支持歌单搜索"
-							mu.Unlock()
-						}
-					} else if searchType == "album" {
-						fn := core.GetAlbumSearchFunc(s)
-						if fn != nil {
-							res, err := fn(keyword)
-							if err == nil {
-								for i := range res {
-									res[i].Source = s
-								}
-								mu.Lock()
-								allPlaylists = append(allPlaylists, res...)
-								mu.Unlock()
-							} else {
-								mu.Lock()
-								sourceErrors[s] = err.Error()
-								mu.Unlock()
-							}
-						} else {
-							mu.Lock()
-							sourceErrors[s] = "该来源不支持专辑搜索"
-							mu.Unlock()
-						}
-					} else {
-						fn := core.GetSearchFunc(s)
-						if fn != nil {
-							res, err := fn(keyword)
-							if err == nil {
-								for i := range res {
-									res[i].Source = s
-								}
-								mu.Lock()
-								allSongs = append(allSongs, res...)
-								mu.Unlock()
-							} else {
-								mu.Lock()
-								sourceErrors[s] = err.Error()
-								mu.Unlock()
-							}
-						} else {
-							mu.Lock()
-							sourceErrors[s] = "该来源不支持歌曲搜索"
-							mu.Unlock()
-						}
-					}
-				}(src)
-			}
-			wg.Wait()
-			errorMsg = formatSearchSourceErrors(sources, sourceErrors)
-
-			if searchType == "song" && containsLocalSource(sources) {
-				localSongs := localMusicSearchSongs(keyword, 200)
-				if len(localSongs) > 0 {
-					mu.Lock()
-					allSongs = append(allSongs, localSongs...)
-					mu.Unlock()
-				}
-			}
-			if searchType == "playlist" && containsLocalSource(sources) {
-				localPlaylists := localCollectionSearchPlaylists(keyword)
-				if len(localPlaylists) > 0 {
-					mu.Lock()
-					allPlaylists = append(allPlaylists, localPlaylists...)
-					mu.Unlock()
-				}
-			}
-		}
-
-		if searchType == "song" && exactArtist != "" && len(allSongs) > 0 {
-			allSongs = filterSongsByExactArtist(allSongs, exactArtist)
-		}
-		renderIndex(c, allSongs, allPlaylists, keyword, sources, errorMsg, searchType, "", "", "", false, "", importCollection)
+		result := runSearch(c, keyword, searchType, exactArtist, sources)
+		c.Set("IsSearchResults", true)
+		renderIndex(c, result.Songs, result.Playlists, keyword, sources, result.ErrorMsg, result.SearchType, "", "", "", false, "", result.ImportCollection)
 	})
 
 	api.GET("/playlist", func(c *gin.Context) {
@@ -2141,4 +1978,180 @@ func formatSearchSourceErrors(
 	default:
 		return "部分平台搜索失败: " + strings.Join(parts, "；")
 	}
+}
+
+type searchResult struct {
+	Songs            []model.Song
+	Playlists        []model.Playlist
+	ErrorMsg         string
+	SearchType       string
+	ImportCollection *importCollectionMeta
+}
+
+// runSearch 执行一次搜索（关键词或链接解析），返回未分页的完整结果。
+func runSearch(c *gin.Context, keyword, searchType, exactArtist string, sources []string) searchResult {
+	var importCollection *importCollectionMeta
+	var allSongs []model.Song
+	var allPlaylists []model.Playlist
+	var errorMsg string
+
+	if strings.HasPrefix(keyword, "http") {
+		src := core.DetectSource(keyword)
+		if src == "" {
+			errorMsg = "不支持该链接的解析，或无法识别来源"
+		} else {
+			parsed := false
+			parseFn := core.GetParseFunc(src)
+			if parseFn != nil {
+				if song, err := parseFn(keyword); err == nil {
+					allSongs = append(allSongs, *song)
+					searchType = "song"
+					parsed = true
+				}
+			}
+			if !parsed {
+				parsePlaylistFn := core.GetParsePlaylistFunc(src)
+				if parsePlaylistFn != nil {
+					if playlist, songs, err := parsePlaylistFn(keyword); err == nil {
+						if searchType == "playlist" {
+							allPlaylists = append(allPlaylists, *playlist)
+						} else {
+							allSongs = append(allSongs, songs...)
+							searchType = "song"
+							if playlist != nil {
+								playlistLink := strings.TrimSpace(playlist.Link)
+								importCollection = importCollectionFromQuery(c, collectionContentPlaylist, src, playlist.ID, playlistLink, len(songs))
+								applyImportCollectionFallback(importCollection, playlist, len(songs), keyword)
+							}
+						}
+						parsed = true
+					}
+				}
+			}
+			if !parsed {
+				parseAlbumFn := core.GetParseAlbumFunc(src)
+				if parseAlbumFn != nil {
+					if album, songs, err := parseAlbumFn(keyword); err == nil {
+						if searchType == "album" {
+							allPlaylists = append(allPlaylists, *album)
+						} else {
+							allSongs = append(allSongs, songs...)
+							searchType = "song"
+							if album != nil {
+								albumLink := strings.TrimSpace(album.Link)
+								importCollection = importCollectionFromQuery(c, collectionContentAlbum, src, album.ID, albumLink, len(songs))
+								applyImportCollectionFallback(importCollection, album, len(songs), keyword)
+							}
+						}
+						parsed = true
+					}
+				}
+			}
+			if !parsed {
+				errorMsg = fmt.Sprintf("解析失败: 暂不支持 %s 平台的此链接类型或解析出错", src)
+			}
+		}
+	} else {
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+		sourceErrors := make(map[string]string)
+
+		for _, src := range sources {
+			if isLocalMusicSource(src) {
+				continue
+			}
+			wg.Add(1)
+			go func(s string) {
+				defer wg.Done()
+				if searchType == "playlist" {
+					fn := core.GetPlaylistSearchFunc(s)
+					if fn != nil {
+						res, err := fn(keyword)
+						if err == nil {
+							for i := range res {
+								res[i].Source = s
+							}
+							mu.Lock()
+							allPlaylists = append(allPlaylists, res...)
+							mu.Unlock()
+						} else {
+							mu.Lock()
+							sourceErrors[s] = err.Error()
+							mu.Unlock()
+						}
+					} else {
+						mu.Lock()
+						sourceErrors[s] = "该来源不支持歌单搜索"
+						mu.Unlock()
+					}
+				} else if searchType == "album" {
+					fn := core.GetAlbumSearchFunc(s)
+					if fn != nil {
+						res, err := fn(keyword)
+						if err == nil {
+							for i := range res {
+								res[i].Source = s
+							}
+							mu.Lock()
+							allPlaylists = append(allPlaylists, res...)
+							mu.Unlock()
+						} else {
+							mu.Lock()
+							sourceErrors[s] = err.Error()
+							mu.Unlock()
+						}
+					} else {
+						mu.Lock()
+						sourceErrors[s] = "该来源不支持专辑搜索"
+						mu.Unlock()
+					}
+				} else {
+					fn := core.GetSearchFunc(s)
+					if fn != nil {
+						res, err := fn(keyword)
+						if err == nil {
+							for i := range res {
+								res[i].Source = s
+							}
+							mu.Lock()
+							allSongs = append(allSongs, res...)
+							mu.Unlock()
+						} else {
+							mu.Lock()
+							sourceErrors[s] = err.Error()
+							mu.Unlock()
+						}
+					} else {
+						mu.Lock()
+						sourceErrors[s] = "该来源不支持歌曲搜索"
+						mu.Unlock()
+					}
+				}
+			}(src)
+		}
+		wg.Wait()
+		errorMsg = formatSearchSourceErrors(sources, sourceErrors)
+
+		if searchType == "song" && containsLocalSource(sources) {
+			localSongs := localMusicSearchSongs(keyword, 200)
+			if len(localSongs) > 0 {
+				mu.Lock()
+				allSongs = append(allSongs, localSongs...)
+				mu.Unlock()
+			}
+		}
+		if searchType == "playlist" && containsLocalSource(sources) {
+			localPlaylists := localCollectionSearchPlaylists(keyword)
+			if len(localPlaylists) > 0 {
+				mu.Lock()
+				allPlaylists = append(allPlaylists, localPlaylists...)
+				mu.Unlock()
+			}
+		}
+	}
+
+	if searchType == "song" && exactArtist != "" && len(allSongs) > 0 {
+		allSongs = filterSongsByExactArtist(allSongs, exactArtist)
+	}
+	return searchResult{Songs: allSongs, Playlists: allPlaylists, ErrorMsg: errorMsg, SearchType: searchType, ImportCollection: importCollection}
 }

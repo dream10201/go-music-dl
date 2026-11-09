@@ -28,6 +28,9 @@
         </div>
 
         <div class="song-list-actions">
+            {{ if and .IsSearchResults .Result (not .ImportCollection) }}
+            <button type="button" class="ctrl-btn primary" title="把本次搜索的全部结果（包含其他分页）加入下载队列" onclick="downloadAllSearchResults(this)"><i class="fa-solid fa-cloud-arrow-down"></i> 下载全部结果</button>
+            {{ end }}
             {{ if .ColID }}
             <button type="button" class="ctrl-btn primary" data-container-kind="collection" data-container-id="{{.ColID}}" title="下载整个本地歌单，包含其他分页" onclick="downloadWholeCollection(this)"><i class="fa-solid fa-cloud-arrow-down"></i> {{ if eq .CollectionContentType "album" }}下载整张专辑{{ else }}下载整个歌单{{ end }}</button>
             {{ else if and .ImportCollection .ImportCollection.Enabled }}

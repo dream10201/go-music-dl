@@ -21,6 +21,11 @@
             <div class="page-summary">当前第 {{ .Page }} / {{ .TotalPages }} 页，显示 {{ .PageStart }} - {{ .PageEnd }} / {{ .TotalCount }}</div>
             {{ end }}
         </div>
+        {{ if .IsSearchResults }}
+        <div class="song-list-actions">
+            <button type="button" class="ctrl-btn primary" title="获取本次搜索全部{{ if eq .SearchType "album" }}专辑{{ else }}歌单{{ end }}（包含其他分页）的完整曲目并加入下载队列" onclick="downloadAllSearchResults(this)"><i class="fa-solid fa-cloud-arrow-down"></i> 下载全部{{ if eq .SearchType "album" }}专辑{{ else }}歌单{{ end }}</button>
+        </div>
+        {{ end }}
     </div>
     <div class="playlist-grid-container">
         {{ range .Playlists }}
