@@ -539,7 +539,7 @@
         <div class="modal-header">
             <div>
                 <h3><i class="fa-solid fa-clock-rotate-left"></i> 下载管理</h3>
-                <p class="download-records-subtitle">任务自动保存，重启后继续；中断歌曲会重新下载。</p>
+                <p class="download-records-subtitle">任务自动保存，重启后继续；失败自动重试 5 次，中断歌曲会重新下载。</p>
             </div>
             <div class="modal-close" onclick="closeDownloadRecordsModal()"><i class="fa-solid fa-xmark"></i></div>
         </div>
@@ -547,6 +547,7 @@
             <div class="queue-tabs" role="tablist" aria-label="下载管理">
                 <button type="button" role="tab" data-download-tab="queue" aria-selected="true" onclick="switchDownloadManagerTab('queue')">下载队列</button>
                 <button type="button" role="tab" data-download-tab="history" aria-selected="false" onclick="switchDownloadManagerTab('history')">历史记录</button>
+                <button type="button" role="tab" data-download-tab="dedup" aria-selected="false" onclick="switchDownloadManagerTab('dedup')">已下载</button>
             </div>
             <section id="download-queue-panel">
                 <div id="download-queue-summary" aria-live="polite"></div>
@@ -569,6 +570,13 @@
             <div class="utility-modal-toolbar download-records-toolbar">
                 <span id="download-records-count" class="utility-modal-count download-records-count">加载中...</span>
                 <div class="utility-modal-actions download-records-actions">
+                    <div class="queue-filter">
+                        <label for="download-records-filter">显示记录</label>
+                        <select id="download-records-filter" onchange="downloadRecordsFilter=this.value;loadDownloadRecordsPage(1)"><option value="">全部</option><option value="success">成功</option><option value="skipped">跳过</option><option value="failed">失败</option></select>
+                    </div>
+                    <button type="button" class="btn-pill" onclick="retryFailedDownloadRecords()">
+                        <i class="fa-solid fa-rotate-right"></i> 重试失败项
+                    </button>
                     <button type="button" class="btn-pill" onclick="openDownloadDirectory()">
                         <i class="fa-solid fa-folder-open"></i> 打开目录
                     </button>
@@ -582,6 +590,19 @@
             </div>
             <div id="download-records-list" class="utility-modal-list download-records-list"></div>
             <nav id="download-records-pagination" class="utility-modal-pagination" aria-label="下载记录分页"></nav>
+            </section>
+            <section id="download-dedup-panel" hidden>
+                <div class="utility-modal-toolbar download-records-toolbar">
+                    <span id="download-dedup-count" class="utility-modal-count download-records-count">加载中...</span>
+                    <div class="utility-modal-actions download-records-actions">
+                        <input id="download-dedup-search" type="search" class="queue-search-input" placeholder="搜索歌名、歌手或路径" oninput="scheduleDownloadDedupSearch()" aria-label="搜索已下载记录">
+                        <button type="button" class="btn-pill queue-refresh" onclick="loadDownloadDedupPage(activeDownloadDedupPage)"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 刷新</button>
+                        <button type="button" class="btn-pill btn-pill-danger" onclick="clearDownloadDedup()"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> 清空</button>
+                    </div>
+                </div>
+                <p class="queue-note">这里是「已下载」判定依据。文件搬走后记录仍然保留，不会重复下载；删除某条记录后该歌曲可重新下载。</p>
+                <div id="download-dedup-list" class="utility-modal-list download-records-list"></div>
+                <nav id="download-dedup-pagination" class="utility-modal-pagination" aria-label="已下载记录分页"></nav>
             </section>
         </div>
     </div>

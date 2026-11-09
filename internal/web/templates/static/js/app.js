@@ -5197,11 +5197,75 @@ async function switchDownloadManagerTab(tab) {
   downloadManagerTab = tab;
   document.getElementById("download-queue-panel").hidden = tab !== "queue";
   document.getElementById("download-history-panel").hidden = tab !== "history";
+  document.getElementById("download-dedup-panel").hidden = tab !== "dedup";
   document.querySelectorAll("[data-download-tab]").forEach(button => {
     button.setAttribute("aria-selected", String(button.dataset.downloadTab === tab));
   });
   if (tab === "queue") await loadDownloadQueue();
+  else if (tab === "dedup") await loadDownloadDedupPage(1);
   else await loadDownloadRecordsPage(1);
+}
+
+let activeDownloadDedupPage = 1;
+let downloadDedupSearchTimer = 0;
+
+function scheduleDownloadDedupSearch() {
+  clearTimeout(downloadDedupSearchTimer);
+  downloadDedupSearchTimer = setTimeout(() => loadDownloadDedupPage(1), 300);
+}
+
+async function loadDownloadDedupPage(page = 1) {
+  const countEl = document.getElementById("download-dedup-count");
+  const listEl = document.getElementById("download-dedup-list");
+  const paginationEl = document.getElementById("download-dedup-pagination");
+  const q = document.getElementById("download-dedup-search")?.value?.trim() || "";
+  if (countEl) countEl.textContent = "加载中...";
+  try {
+    const params = new URLSearchParams({page: String(Math.max(1, parsePositiveInt(page, 1))), q});
+    const resp = await fetch(`${API_ROOT}/api/downloads/dedup?${params}`, {cache: "no-store"});
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+    const items = data.items || [];
+    activeDownloadDedupPage = Math.max(1, parsePositiveInt(data.page, 1));
+    const totalPages = Math.max(1, parsePositiveInt(data.total_pages, 1));
+    if (countEl) countEl.textContent = `共 ${parsePositiveInt(data.total, 0)} 条${q ? "（已筛选）" : ""}`;
+    if (listEl) {
+      listEl.innerHTML = items.map(item => {
+        const file = item.file_exists === false
+          ? '<span class="download-record-status is-skipped"><i class="fa-solid fa-folder-minus"></i>文件已移走</span>'
+          : item.file_exists === true
+            ? '<span class="download-record-status is-success"><i class="fa-solid fa-check"></i>文件在本地</span>'
+            : '<span class="download-record-status"><i class="fa-regular fa-circle-question"></i>路径未知</span>';
+        const time = item.created_at ? new Date(item.created_at).toLocaleString() : "";
+        return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(item.name || "未知歌曲")}</strong><span>${escapeHtml(item.artist || "未知歌手")}${time ? " · " + escapeHtml(time) : ""}</span><small>${escapeHtml(item.rel_path || "")}</small></div><div class="queue-task-action">${file}<div class="queue-task-buttons"><button type="button" class="queue-delete-button" onclick="removeDownloadDedup(${JSON.stringify(item.key)})" title="删除记录，允许重新下载" aria-label="删除已下载记录：${escapeHtml(item.name || "未知歌曲")}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></div></div></article>`;
+      }).join("") || '<div class="download-records-empty"><div><i class="fa-regular fa-clock"></i><br>暂无已下载记录</div></div>';
+    }
+    if (paginationEl) paginationEl.innerHTML = renderUtilityModalPagination(activeDownloadDedupPage, totalPages, "loadDownloadDedupPage");
+  } catch (err) {
+    if (countEl) countEl.textContent = "加载失败";
+    if (listEl) listEl.innerHTML = `<div class="download-records-error">加载失败: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function deleteDownloadDedup(body) {
+  const resp = await fetch(`${API_ROOT}/api/downloads/dedup`, {method: "DELETE", headers: {"Content-Type": "application/json", "X-Requested-With": "XMLHttpRequest"}, body: JSON.stringify(body)});
+  const data = await resp.json();
+  if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+}
+
+async function removeDownloadDedup(key) {
+  try {
+    await deleteDownloadDedup({keys: [key]});
+    await loadDownloadDedupPage(activeDownloadDedupPage);
+  } catch (err) { showToast("删除失败", err.message, "error", downloadNoticeDuration()); }
+}
+
+async function clearDownloadDedup() {
+  if (!(await confirmAppAction({title: "清空已下载记录", message: "清空后所有歌曲都会被视为未下载，再次下载时会重新下载并可能覆盖本地文件。确定继续？", confirmLabel: "清空记录", destructive: true}))) return;
+  try {
+    await deleteDownloadDedup({all: true});
+    await loadDownloadDedupPage(1);
+  } catch (err) { showToast("清空失败", err.message, "error", downloadNoticeDuration()); }
 }
 
 async function loadDownloadQueue(page = downloadQueuePage) {
@@ -5285,6 +5349,7 @@ document.addEventListener("DOMContentLoaded", () => { void loadDownloadQueue(); 
 
 const DOWNLOAD_RECORDS_PAGE_SIZE = 20;
 let activeDownloadRecordsPage = 1;
+let downloadRecordsFilter = "";
 
 function renderUtilityModalPagination(page, totalPages, onPageChange) {
   if (totalPages <= 1) return "";
@@ -5338,6 +5403,7 @@ async function loadDownloadRecordsPage(page = 1) {
   const params = new URLSearchParams({
     page: String(Math.max(1, parsePositiveInt(page, 1))),
     page_size: String(DOWNLOAD_RECORDS_PAGE_SIZE),
+    status: downloadRecordsFilter,
   });
 
   try {
@@ -5350,10 +5416,8 @@ async function loadDownloadRecordsPage(page = 1) {
     const totalPages = Math.max(1, parsePositiveInt(data.total_pages, 1));
 
     if (countEl) {
-      const success = records.filter(r => r.Status === "success").length;
-      const skipped = records.filter(r => r.Status === "skipped").length;
-      const failed = records.filter(r => r.Status === "failed").length;
-      countEl.textContent = `共 ${total} 条  ·  本页成功 ${success}  ·  跳过 ${skipped}  ·  失败 ${failed}`;
+      const c = data.counts || {};
+      countEl.textContent = `共 ${total} 条  ·  成功 ${c.success || 0}  ·  跳过 ${c.skipped || 0}  ·  失败 ${c.failed || 0}`;
     }
 
     if (records.length === 0) {
@@ -5376,10 +5440,10 @@ async function loadDownloadRecordsPage(page = 1) {
         : r.Status === "skipped"
           ? { className: "is-skipped", icon: "fa-forward", label: "跳过" }
           : { className: "is-failed", icon: "fa-xmark", label: "失败" };
-      const errHint = r.Error ? ` title="${escapeHtml(r.Error)}"` : "";
+      const reason = r.Error ? `<div class="download-record-reason">${escapeHtml(r.Error)}</div>` : "";
       const time = r.CreatedAt ? new Date(r.CreatedAt).toLocaleString() : "";
-      html += `<tr${errHint}>
-        <td><div class="download-record-name">${escapeHtml(r.Name || "")}</div></td>
+      html += `<tr>
+        <td><div class="download-record-name">${escapeHtml(r.Name || "")}</div>${reason}</td>
         <td><div class="download-record-artist">${escapeHtml(r.Artist || "")}</div></td>
         <td><span class="download-record-source">${escapeHtml(r.Source || "")}</span></td>
         <td><span class="download-record-status ${status.className}"><i class="fa-solid ${status.icon}"></i>${status.label}</span></td>
@@ -5399,6 +5463,23 @@ async function loadDownloadRecordsPage(page = 1) {
   } catch (err) {
     if (countEl) countEl.textContent = "加载失败";
     if (listEl) listEl.innerHTML = `<div class="download-records-error">加载失败: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function retryFailedDownloadRecords() {
+  try {
+    const resp = await fetch(`${API_ROOT}/api/downloads/records/retry-failed`, {method:"POST", headers:{"X-Requested-With":"XMLHttpRequest"}});
+    const data = await resp.json();
+    if (!resp.ok || data.error) throw new Error(data.error || `HTTP ${resp.status}`);
+    if (!data.total) {
+      showToast("没有可重试的失败项", "失败记录已重新下载，或缺少重试所需的歌曲信息。", "info", downloadNoticeDuration());
+      return;
+    }
+    showToast("已加入下载队列", `${data.added} 首失败歌曲重新排队${data.total > data.added ? `，${data.total - data.added} 首已在队列中` : ""}。`, "success", downloadNoticeDuration());
+    downloadQueueRenderKey = "";
+    await switchDownloadManagerTab("queue");
+  } catch (err) {
+    showToast("重试失败", err.message, "error", downloadNoticeDuration());
   }
 }
 

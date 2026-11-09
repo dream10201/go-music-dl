@@ -51,6 +51,12 @@ type DownloadTask struct {
 }
 
 type DownloadTaskResult struct{ Status, Path, Warning string }
+
+const (
+	downloadRetryLimit = 5
+	downloadRetryDelay = 3 * time.Second
+)
+
 type DownloadTaskProcessor func(DownloadTaskInput) (DownloadTaskResult, error)
 
 type DownloadQueue struct {
@@ -225,7 +231,7 @@ func (q *DownloadQueue) claim() (*DownloadTask, error) {
 	})
 	return &task, err
 }
-func (q *DownloadQueue) finish(id uint, result DownloadTaskResult, err error) error {
+func (q *DownloadQueue) finish(id uint, result DownloadTaskResult, err error, extraAttempts int) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	status := result.Status
@@ -233,6 +239,9 @@ func (q *DownloadQueue) finish(id uint, result DownloadTaskResult, err error) er
 	if err != nil {
 		status = DownloadStatusFailed
 		message = err.Error()
+		if extraAttempts > 0 {
+			message = fmt.Sprintf("%s（已自动重试 %d 次）", message, extraAttempts)
+		}
 	}
 	if status != DownloadStatusSuccess && status != DownloadStatusSkipped && status != DownloadStatusFailed {
 		status = DownloadStatusFailed
@@ -242,7 +251,7 @@ func (q *DownloadQueue) finish(id uint, result DownloadTaskResult, err error) er
 		if err := tx.Where("id = ? AND removed = ?", id, true).Delete(&DownloadTask{}).Error; err != nil {
 			return err
 		}
-		return tx.Model(&DownloadTask{}).Where("id = ? AND status = ?", id, TaskDownloading).Updates(map[string]interface{}{"status": status, "error": message, "warning": result.Warning, "path": result.Path}).Error
+		return tx.Model(&DownloadTask{}).Where("id = ? AND status = ?", id, TaskDownloading).Updates(map[string]interface{}{"status": status, "error": message, "warning": result.Warning, "path": result.Path, "attempts": gorm.Expr("attempts + ?", extraAttempts)}).Error
 	})
 }
 func processDownloadTask(process DownloadTaskProcessor, input DownloadTaskInput) (result DownloadTaskResult, err error) {
@@ -252,6 +261,24 @@ func processDownloadTask(process DownloadTaskProcessor, input DownloadTaskInput)
 		}
 	}()
 	return process(input)
+}
+
+// processWithRetry retries a failed download up to downloadRetryLimit times and
+// returns how many retries were made.
+func processWithRetry(ctx context.Context, process DownloadTaskProcessor, input DownloadTaskInput, delay time.Duration) (DownloadTaskResult, error, int) {
+	retries := 0
+	for {
+		result, err := processDownloadTask(process, input)
+		if err == nil || retries >= downloadRetryLimit || ctx.Err() != nil {
+			return result, err, retries
+		}
+		retries++
+		select {
+		case <-ctx.Done():
+			return result, err, retries - 1
+		case <-time.After(delay):
+		}
+	}
 }
 
 // Start is called once after the server has bound its port. A single worker keeps
@@ -274,11 +301,12 @@ func (q *DownloadQueue) Start(ctx context.Context, process DownloadTaskProcessor
 					var input DownloadTaskInput
 					err = json.Unmarshal([]byte(task.Payload), &input)
 					var result DownloadTaskResult
+					retries := 0
 					if err == nil {
-						result, err = processDownloadTask(process, input)
+						result, err, retries = processWithRetry(ctx, process, input, downloadRetryDelay)
 					}
 					for {
-						if saveErr := q.finish(task.ID, result, err); saveErr == nil {
+						if saveErr := q.finish(task.ID, result, err, retries); saveErr == nil {
 							break
 						} else {
 							log.Printf("persist download task %d: %v", task.ID, saveErr)

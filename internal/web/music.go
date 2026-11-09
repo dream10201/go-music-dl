@@ -1424,8 +1424,15 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		if pageSize > 100 {
 			pageSize = 100
 		}
+		status := strings.TrimSpace(c.Query("status"))
+		switch status {
+		case "", core.DownloadStatusSuccess, core.DownloadStatusSkipped, core.DownloadStatusFailed:
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "无效的状态筛选"})
+			return
+		}
 
-		records, total, err := core.GetDownloadRecordPage(page, pageSize)
+		records, total, counts, err := core.GetDownloadRecordPage(page, pageSize, status)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1436,7 +1443,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		}
 		if page > totalPages {
 			page = totalPages
-			records, total, err = core.GetDownloadRecordPage(page, pageSize)
+			records, total, counts, err = core.GetDownloadRecordPage(page, pageSize, status)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
@@ -1447,6 +1454,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		}
 		c.JSON(200, gin.H{
 			"records":     records,
+			"counts":      counts,
 			"page":        page,
 			"page_size":   pageSize,
 			"total":       total,

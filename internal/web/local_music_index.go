@@ -200,11 +200,7 @@ func syncLocalMusicIndexAsync() {
 	}()
 }
 
-// reconcileDownloadDedupWithScan 用一次全量扫盘结果对账下载去重索引。keep 之外的
-// 歌说明磁盘上已经没有文件，对应记录会被回收；路径有变化的会被更新。
-//
-// 只在扫描到至少一个音频文件时才动去重索引：下载目录被整个清空（或挂载点掉了）
-// 时宁可保守，避免一次性清光下载去重记录。
+// reconcileDownloadDedupWithScan syncs recorded file paths with a full scan.
 func reconcileDownloadDedupWithScan(tracks []*localMusicTrack, outDir string) {
 	if len(tracks) == 0 {
 		return
@@ -219,9 +215,8 @@ func reconcileDownloadDedupWithScan(tracks []*localMusicTrack, outDir string) {
 	_, _ = core.PruneDownloadDedup(outDir, keep)
 }
 
-// resolveLegacyDedupForSong 处理没有记录文件路径的旧去重记录：拿歌名+歌手去本地曲库
-// 索引反查，确认真实文件还在不在。查不到就回收记录（这次下载不再被跳过），查到就
-// 把路径补回去，后续判定可以直接走文件校验。
+// resolveLegacyDedupForSong backfills the file path of a legacy dedup record
+// (one saved without a path) from the local music index or a directory scan.
 func resolveLegacyDedupForSong(index core.DownloadDedupIndex, song *model.Song) {
 	if index == nil || song == nil {
 		return
@@ -259,8 +254,6 @@ func resolveLegacyDedupForSong(index core.DownloadDedupIndex, song *model.Song) 
 		}
 	}
 	if match == nil {
-		_ = core.ForgetDownloadedSong(song.Name, song.Artist, "")
-		delete(index, key)
 		return
 	}
 

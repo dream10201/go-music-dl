@@ -1,9 +1,11 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
@@ -66,6 +68,65 @@ func RegisterDownloadQueueRoutes(api *gin.RouterGroup, queue *core.DownloadQueue
 			return
 		}
 		c.JSON(http.StatusAccepted, gin.H{"added": added, "existing": len(inputs) - added})
+	})
+	api.POST("/api/downloads/records/retry-failed", func(c *gin.Context) {
+		if !allowSameOriginWrite(c) {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+		inputs, err := core.FailedDownloadRetryInputs()
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		added := 0
+		if len(inputs) > 0 {
+			added, err = queue.Enqueue(fmt.Sprintf("retry-failed:%d", time.Now().UnixNano()), inputs)
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		c.JSON(http.StatusAccepted, gin.H{"added": added, "total": len(inputs)})
+	})
+	api.GET("/api/downloads/dedup", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		items, total, err := core.ListDownloadDedup(page, 50, c.Query("q"), core.GetWebSettings().DownloadDir)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		if page < 1 {
+			page = 1
+		}
+		c.JSON(200, gin.H{"items": items, "total": total, "page": page, "total_pages": (total + 49) / 50})
+	})
+	api.DELETE("/api/downloads/dedup", func(c *gin.Context) {
+		if !allowSameOriginWrite(c) {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
+		var req struct {
+			Keys []string `json:"keys"`
+			All  bool     `json:"all"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil || (!req.All && len(req.Keys) == 0) || len(req.Keys) > 1000 {
+			c.JSON(400, gin.H{"error": "请指定要删除的记录"})
+			return
+		}
+		var err error
+		if req.All {
+			err = core.ClearDownloadDedup()
+		} else {
+			err = core.ForgetDownloadDedupKeys(req.Keys...)
+		}
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(200, gin.H{"status": "ok"})
 	})
 	api.DELETE("/api/downloads/queue", func(c *gin.Context) {
 		if !allowSameOriginWrite(c) {

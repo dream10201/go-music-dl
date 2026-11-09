@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
+	"github.com/guohuiyuan/music-lib/model"
 )
 
 func TestDownloadQueueAPIPersistsAppendAndRejectsCrossOrigin(t *testing.T) {
@@ -107,4 +108,77 @@ func TestDownloadQueueAPIPersistsAppendAndRejectsCrossOrigin(t *testing.T) {
 		t.Fatal(total, err)
 	}
 
+}
+
+func TestRetryFailedRecordsEnqueuesFailedHistory(t *testing.T) {
+	if err := core.CloseConfigDB(); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(t.TempDir(), "settings.db"))
+	t.Cleanup(func() { _ = core.CloseConfigDB() })
+	q, err := core.OpenDownloadQueue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	song := &model.Song{ID: "7", Source: "nosuch", Name: "Broken", Artist: "Artist"}
+	if _, err := core.DownloadWithDedupCheckWithTemplate(song, t.TempDir(), true, true, "", nil); err == nil {
+		t.Fatal("download with unsupported source should fail")
+	}
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	RegisterDownloadQueueRoutes(r.Group("/music"), q)
+	req := httptest.NewRequest("POST", "http://music.test/music/api/downloads/records/retry-failed", nil)
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Origin", "http://music.test")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted || !bytes.Contains(w.Body.Bytes(), []byte(`"added":1`)) {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	tasks, _, _, err := q.List(1, 10, "")
+	if err != nil || len(tasks) != 1 || tasks[0].Name != "Broken" || tasks[0].Status != core.TaskWaiting {
+		t.Fatal(err, tasks)
+	}
+}
+
+func TestDedupRoutesListAndForget(t *testing.T) {
+	if err := core.CloseConfigDB(); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(t.TempDir(), "settings.db"))
+	t.Cleanup(func() { _ = core.CloseConfigDB() })
+	q, err := core.OpenDownloadQueue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := core.SaveDownloadDedupEntry("Moved", "Artist", "Artist - Moved.mp3"); err != nil {
+		t.Fatal(err)
+	}
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	RegisterDownloadQueueRoutes(r.Group("/music"), q)
+	do := func(method, path string, body []byte) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(method, "http://music.test/music/api/downloads/dedup"+path, bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Requested-With", "XMLHttpRequest")
+		req.Header.Set("Origin", "http://music.test")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		return w
+	}
+	w := do("GET", "?q=moved", nil)
+	var listed struct {
+		Items []core.DownloadDedupListItem
+		Total int
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &listed); err != nil || w.Code != 200 || listed.Total != 1 || listed.Items[0].FileExists == nil || *listed.Items[0].FileExists {
+		t.Fatal(w.Code, w.Body.String(), err)
+	}
+	body, _ := json.Marshal(map[string]any{"keys": []string{listed.Items[0].SongKey}})
+	if w := do("DELETE", "", body); w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if w := do("GET", "", nil); !bytes.Contains(w.Body.Bytes(), []byte(`"total":0`)) {
+		t.Fatal(w.Body.String())
+	}
 }

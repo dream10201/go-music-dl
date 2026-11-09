@@ -82,21 +82,20 @@ func TestGetDownloadRecordPageReturnsStablePagesAndTotal(t *testing.T) {
 		}
 	}
 
-	records, total, err := GetDownloadRecordPage(2, 1)
+	records, total, counts, err := GetDownloadRecordPage(2, 1, "")
 	if err != nil {
 		t.Fatalf("GetDownloadRecordPage: %v", err)
 	}
-	if total != 3 {
-		t.Fatalf("total = %d, want 3", total)
+	if total != 3 || counts[DownloadStatusSuccess] != 3 {
+		t.Fatalf("total = %d, counts = %v, want 3", total, counts)
 	}
 	if len(records) != 1 || records[0].Name != "Second" {
 		t.Fatalf("page 2 = %#v, want Second", records)
 	}
 }
 
-// 文件被删掉（含在 NAS 后台直接删）以后，这首歌不能再被判成「已下载」，否则再点
-// 下载只会返回「跳过」。
-func TestDeletedDownloadFileStopsBeingSkipped(t *testing.T) {
+// 文件被搬走后记录仍然有效，不会重复下载；删除记录后才可重新下载。
+func TestMovedDownloadFileStaysDownloadedUntilRecordRemoved(t *testing.T) {
 	newDownloadDedupTestDB(t)
 	downloadDir := t.TempDir()
 
@@ -127,16 +126,23 @@ func TestDeletedDownloadFileStopsBeingSkipped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadDownloadDedupSet after delete: %v", err)
 	}
-	if IsSongStillDownloaded(song, index, downloadDir) {
-		t.Fatal("文件已删除，不应再判定为已下载")
+	if !IsSongStillDownloaded(song, index, downloadDir) {
+		t.Fatal("文件被搬走后仍应判定为已下载")
 	}
 
+	items, total, err := ListDownloadDedup(1, 10, "son", downloadDir)
+	if err != nil || total != 1 || len(items) != 1 || items[0].FileExists == nil || *items[0].FileExists {
+		t.Fatalf("ListDownloadDedup = %#v, %d, %v", items, total, err)
+	}
+	if err := ForgetDownloadDedupKeys(items[0].SongKey); err != nil {
+		t.Fatalf("ForgetDownloadDedupKeys: %v", err)
+	}
 	index, err = LoadDownloadDedupSet()
 	if err != nil {
-		t.Fatalf("LoadDownloadDedupSet after recycle: %v", err)
+		t.Fatalf("LoadDownloadDedupSet after forget: %v", err)
 	}
 	if IsSongDownloaded(song, index) {
-		t.Fatal("发现文件被删除后，去重记录应当一起回收")
+		t.Fatal("删除记录后应可重新下载")
 	}
 }
 
@@ -224,7 +230,7 @@ func TestForgetDownloadedSongClearsDedupEntry(t *testing.T) {
 	}
 }
 
-func TestPruneDownloadDedupDropsMissingFilesAndBackfillsPath(t *testing.T) {
+func TestPruneDownloadDedupKeepsMissingFilesAndBackfillsPath(t *testing.T) {
 	newDownloadDedupTestDB(t)
 
 	if err := SaveDownloadDedupEntry("Keep", "Artist", "Artist - Keep.flac"); err != nil {
@@ -247,15 +253,15 @@ func TestPruneDownloadDedupDropsMissingFilesAndBackfillsPath(t *testing.T) {
 		t.Fatalf("PruneDownloadDedup: %v", err)
 	}
 	if removed != 1 {
-		t.Fatalf("removed = %d, want 1 (只有 Drop 的文件不在本地)", removed)
+		t.Fatalf("updated = %d, want 1 (只有 Legacy 需要回填路径)", removed)
 	}
 
 	index, err := LoadDownloadDedupSet()
 	if err != nil {
 		t.Fatalf("LoadDownloadDedupSet: %v", err)
 	}
-	if IsSongDownloaded(&model.Song{Name: "Drop", Artist: "Artist"}, index) {
-		t.Fatal("文件已不在下载目录，记录应当被回收")
+	if !IsSongDownloaded(&model.Song{Name: "Drop", Artist: "Artist"}, index) {
+		t.Fatal("文件被搬走后记录仍应保留")
 	}
 	if !IsSongDownloaded(&model.Song{Name: "Keep", Artist: "Artist"}, index) {
 		t.Fatal("文件还在本地，记录必须保留")
@@ -290,5 +296,43 @@ func TestPruneDownloadDedupKeepsRecordCreatedAfterScan(t *testing.T) {
 	}
 	if !IsSongDownloaded(&model.Song{Name: "New", Artist: "Artist"}, index) {
 		t.Fatal("磁盘上仍存在的并发下载记录不能被旧扫描快照回收")
+	}
+}
+
+func TestFailedDownloadRetryInputsSkipsDownloadedAndDuplicates(t *testing.T) {
+	newDownloadDedupTestDB(t)
+
+	failed := &model.Song{ID: "f1", Source: "migu", Name: "Fail", Artist: "Artist"}
+	if err := saveFailedDownloadRecord(failed, true, "boom"); err != nil {
+		t.Fatalf("saveFailedDownloadRecord: %v", err)
+	}
+	if err := saveFailedDownloadRecord(failed, true, "boom again"); err != nil {
+		t.Fatalf("saveFailedDownloadRecord: %v", err)
+	}
+	recovered := &model.Song{ID: "f2", Source: "migu", Name: "Later OK", Artist: "Artist"}
+	if err := saveFailedDownloadRecord(recovered, false, "boom"); err != nil {
+		t.Fatalf("saveFailedDownloadRecord: %v", err)
+	}
+	if err := SaveDownloadRecordWithRelPath(recovered.Name, recovered.Artist, recovered.Source, DownloadStatusSuccess, "", "Artist - Later OK.mp3"); err != nil {
+		t.Fatalf("SaveDownloadRecordWithRelPath: %v", err)
+	}
+	if err := SaveDownloadRecord("No ID", "Artist", "migu", DownloadStatusFailed, "boom"); err != nil {
+		t.Fatalf("SaveDownloadRecord: %v", err)
+	}
+
+	inputs, err := FailedDownloadRetryInputs()
+	if err != nil {
+		t.Fatalf("FailedDownloadRetryInputs: %v", err)
+	}
+	if len(inputs) != 1 || inputs[0].Song.ID != "f1" || !inputs[0].Embed || inputs[0].Directory == "" {
+		t.Fatalf("inputs = %#v, want only f1 with embed", inputs)
+	}
+
+	_, _, counts, err := GetDownloadRecordPage(1, 10, DownloadStatusFailed)
+	if err != nil {
+		t.Fatalf("GetDownloadRecordPage: %v", err)
+	}
+	if counts[DownloadStatusFailed] != 4 || counts[DownloadStatusSuccess] != 1 {
+		t.Fatalf("counts = %v", counts)
 	}
 }

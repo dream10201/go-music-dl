@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,14 @@ type DownloadRecord struct {
 	Source    string    `gorm:"size:64;not null"`
 	Status    string    `gorm:"size:32;not null;index"`
 	Error     string    `gorm:"size:1024"`
+	Payload   string    `gorm:"type:text" json:"-"`
 	CreatedAt time.Time `gorm:"autoCreateTime;index"`
+}
+
+// downloadRecordPayload is stored with failed records so they can be re-queued.
+type downloadRecordPayload struct {
+	Song  model.Song `json:"song"`
+	Embed bool       `json:"embed"`
 }
 
 // DownloadDedupEntry is intentionally separate from the visible history. Clearing
@@ -86,7 +94,29 @@ func SaveDownloadRecordWithRelPath(name, artist, source, status, errStr, relPath
 		Status: cleanDownloadRecordText(status),
 		Error:  cleanDownloadRecordText(errStr),
 	}
+	return saveDownloadRecord(record, relPath)
+}
 
+func saveFailedDownloadRecord(song *model.Song, embed bool, errStr string) error {
+	if err := initDownloadRecordTable(); err != nil {
+		return err
+	}
+	record := DownloadRecord{
+		Name:   cleanDownloadRecordText(song.Name),
+		Artist: cleanDownloadRecordText(song.Artist),
+		Source: cleanDownloadRecordText(song.Source),
+		Status: DownloadStatusFailed,
+		Error:  cleanDownloadRecordText(errStr),
+	}
+	if strings.TrimSpace(song.ID) != "" {
+		if payload, err := json.Marshal(downloadRecordPayload{Song: *song, Embed: embed}); err == nil {
+			record.Payload = string(payload)
+		}
+	}
+	return saveDownloadRecord(record, "")
+}
+
+func saveDownloadRecord(record DownloadRecord, relPath string) error {
 	if record.Status == DownloadStatusSuccess {
 		defer invalidateDedupCache()
 	}
@@ -149,15 +179,15 @@ func cleanDownloadRelPath(relPath string) string {
 
 // GetDownloadRecords returns the most recent 200 user-visible download records.
 func GetDownloadRecords() ([]DownloadRecord, error) {
-	records, _, err := GetDownloadRecordPage(1, 200)
+	records, _, _, err := GetDownloadRecordPage(1, 200, "")
 	return records, err
 }
 
-// GetDownloadRecordPage returns one page of user-visible download records and
-// the total number of records available for pagination.
-func GetDownloadRecordPage(page, pageSize int) ([]DownloadRecord, int64, error) {
+// GetDownloadRecordPage returns one page of user-visible download records filtered
+// by status ("" for all), the total matching that filter, and per-status counts.
+func GetDownloadRecordPage(page, pageSize int, status string) ([]DownloadRecord, int64, map[string]int64, error) {
 	if err := initDownloadRecordTable(); err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 	if page < 1 {
 		page = 1
@@ -169,13 +199,61 @@ func GetDownloadRecordPage(page, pageSize int) ([]DownloadRecord, int64, error) 
 		pageSize = 200
 	}
 
+	var groups []struct {
+		Status string
+		Count  int64
+	}
+	if err := configDB.Model(&DownloadRecord{}).Select("status, count(*) as count").Group("status").Scan(&groups).Error; err != nil {
+		return nil, 0, nil, err
+	}
+	counts := make(map[string]int64, len(groups))
+	for _, g := range groups {
+		counts[g.Status] = g.Count
+	}
+	query := configDB.Model(&DownloadRecord{})
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
 	var total int64
-	if err := configDB.Model(&DownloadRecord{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, nil, err
 	}
 	var records []DownloadRecord
-	err := configDB.Order("created_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records).Error
-	return records, total, err
+	err := query.Order("created_at DESC, id DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&records).Error
+	return records, total, counts, err
+}
+
+// FailedDownloadRetryInputs builds queue inputs for failed history records that
+// still carry a song payload, newest first, one per song, excluding songs that
+// have since been downloaded.
+func FailedDownloadRetryInputs() ([]DownloadTaskInput, error) {
+	if err := initDownloadRecordTable(); err != nil {
+		return nil, err
+	}
+	var records []DownloadRecord
+	if err := configDB.Where("status = ? AND payload <> ''", DownloadStatusFailed).Order("id DESC").Find(&records).Error; err != nil {
+		return nil, err
+	}
+	index, err := LoadDownloadDedupSet()
+	if err != nil {
+		return nil, err
+	}
+	settings := GetWebSettings()
+	seen := make(map[string]bool, len(records))
+	inputs := make([]DownloadTaskInput, 0, len(records))
+	for _, record := range records {
+		var payload downloadRecordPayload
+		if err := json.Unmarshal([]byte(record.Payload), &payload); err != nil || strings.TrimSpace(payload.Song.ID) == "" || strings.TrimSpace(payload.Song.Source) == "" {
+			continue
+		}
+		identity := payload.Song.Source + ":" + payload.Song.ID
+		if seen[identity] || IsSongDownloaded(&payload.Song, index) {
+			continue
+		}
+		seen[identity] = true
+		inputs = append(inputs, DownloadTaskInput{Song: payload.Song, Directory: DownloadDirOrDefault(settings.DownloadDir), FilenameTemplate: settings.DownloadFilenameTemplate, Embed: payload.Embed})
+	}
+	return inputs, nil
 }
 
 // ClearDownloadRecords clears only the history displayed in the UI. The durable
@@ -270,27 +348,11 @@ func IsSongDownloaded(song *model.Song, index DownloadDedupIndex) bool {
 	return exists
 }
 
-// IsSongStillDownloaded 在去重索引命中的基础上校验文件是否还在下载目录里。
-// 记录里没有路径（旧数据）时按「仍在」处理，由上层用本地曲库索引反查。
-// 一旦确认文件已被删除，会顺手回收这条去重记录，避免以后一直被判定为已下载。
+// IsSongStillDownloaded reports whether the song has a dedup record. Records are
+// authoritative: a file moved out of the download directory still counts as
+// downloaded until the record is removed through the dedup management UI.
 func IsSongStillDownloaded(song *model.Song, index DownloadDedupIndex, outDir string) bool {
-	if index == nil {
-		return false
-	}
-	key, relPath, exists := lookupSongKey(song, index)
-	if !exists {
-		return false
-	}
-	if cleanDownloadRelPath(relPath) == "" {
-		return true
-	}
-	exists, known := inspectDownloadFile(outDir, relPath)
-	if !known || exists {
-		return true
-	}
-	_ = forgetDownloadedSongKeys(key)
-	delete(index, key)
-	return false
+	return IsSongDownloaded(song, index)
 }
 
 // ForgetDownloadedSong 清理去重索引中与这首歌相关的记录（按歌名+歌手，或按文件
@@ -407,11 +469,8 @@ func loadDownloadDedupIndex() (DownloadDedupIndex, error) {
 	return index, nil
 }
 
-// PruneDownloadDedup 用一次全量扫盘结果对账去重索引：keep 里没有的记录说明文件
-// 已经不在下载目录里，整条回收；keep 里有记录的顺手把文件路径回填/更新。
-// 返回被回收的记录条数。
-//
-// 调用方必须先确认下载目录真实存在，否则目录未挂载时会把整张索引清空。
+// PruneDownloadDedup syncs recorded file paths with a full scan of the download
+// directory. Entries whose files are gone are kept. Returns the number of paths updated.
 func PruneDownloadDedup(outDir string, keep map[string]string) (int, error) {
 	if err := initDownloadRecordTable(); err != nil {
 		return 0, err
@@ -423,32 +482,81 @@ func PruneDownloadDedup(outDir string, keep map[string]string) (int, error) {
 		return 0, err
 	}
 
-	removed := 0
+	updated := 0
 	for _, entry := range entries {
-		relPath, exists := keep[entry.SongKey]
-		if !exists {
-			// 扫描和下载可能并发：新记录未必在这轮扫描快照里。删除前再看
-			// 一次磁盘，只要文件明确存在，或状态无法判断，就保留记录。
-			fileExists, fileKnown := inspectDownloadFile(outDir, entry.RelPath)
-			if fileExists || !fileKnown {
-				continue
-			}
-			if err := configDB.Where("song_key = ?", entry.SongKey).Delete(&DownloadDedupEntry{}).Error; err != nil {
-				return removed, err
-			}
-			removed++
+		relPath := cleanDownloadRelPath(keep[entry.SongKey])
+		if relPath == "" || cleanDownloadRelPath(entry.RelPath) == relPath {
 			continue
 		}
-		if relPath != "" && cleanDownloadRelPath(entry.RelPath) != cleanDownloadRelPath(relPath) {
-			// 文件被改名或换目录后，把路径同步过来，下次校验才不会误判。
-			if err := configDB.Model(&DownloadDedupEntry{}).
-				Where("song_key = ?", entry.SongKey).
-				Update("rel_path", cleanDownloadRelPath(relPath)).Error; err != nil {
-				return removed, err
-			}
+		if err := configDB.Model(&DownloadDedupEntry{}).
+			Where("song_key = ?", entry.SongKey).
+			Update("rel_path", relPath).Error; err != nil {
+			return updated, err
 		}
+		updated++
 	}
-	return removed, nil
+	return updated, nil
+}
+
+// DownloadDedupListItem is one row of the dedup management list.
+type DownloadDedupListItem struct {
+	SongKey    string    `json:"key"`
+	Name       string    `json:"name"`
+	Artist     string    `json:"artist"`
+	RelPath    string    `json:"rel_path"`
+	FileExists *bool     `json:"file_exists"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// ListDownloadDedup returns one page of dedup records, newest first, optionally
+// filtered by a substring of name, artist or path.
+func ListDownloadDedup(page, pageSize int, query, outDir string) ([]DownloadDedupListItem, int64, error) {
+	if err := initDownloadRecordTable(); err != nil {
+		return nil, 0, err
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 || pageSize > 200 {
+		pageSize = 50
+	}
+	db := configDB.Model(&DownloadDedupEntry{})
+	if query = strings.TrimSpace(query); query != "" {
+		like := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(query) + "%"
+		db = db.Where(`name LIKE ? ESCAPE '\' OR artist LIKE ? ESCAPE '\' OR rel_path LIKE ? ESCAPE '\'`, like, like, like)
+	}
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var entries []DownloadDedupEntry
+	if err := db.Order("created_at DESC, song_key DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&entries).Error; err != nil {
+		return nil, 0, err
+	}
+	items := make([]DownloadDedupListItem, 0, len(entries))
+	for _, entry := range entries {
+		item := DownloadDedupListItem{SongKey: entry.SongKey, Name: entry.Name, Artist: entry.Artist, RelPath: entry.RelPath, CreatedAt: entry.CreatedAt}
+		if exists, known := inspectDownloadFile(outDir, entry.RelPath); known {
+			item.FileExists = &exists
+		}
+		items = append(items, item)
+	}
+	return items, total, nil
+}
+
+// ForgetDownloadDedupKeys removes dedup records by key so the songs can be
+// downloaded again.
+func ForgetDownloadDedupKeys(keys ...string) error {
+	return forgetDownloadedSongKeys(keys...)
+}
+
+// ClearDownloadDedup removes every dedup record.
+func ClearDownloadDedup() error {
+	if err := initDownloadRecordTable(); err != nil {
+		return err
+	}
+	defer invalidateDedupCache()
+	return configDB.Where("1 = 1").Delete(&DownloadDedupEntry{}).Error
 }
 
 func CountSkippable(queue []model.Song, index DownloadDedupIndex, outDir string) int {
@@ -468,8 +576,12 @@ func DownloadWithDedupCheck(song *model.Song, outDir string, withCover, withLyri
 func DownloadWithDedupCheckWithTemplate(song *model.Song, outDir string, withCover, withLyrics bool, filenameTemplate string, dedupSet DownloadDedupIndex) (*DownloadedSong, error) {
 	key := SongKey(song)
 	if IsSongStillDownloaded(song, dedupSet, outDir) {
-		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusSkipped, "")
-		return &DownloadedSong{Skipped: true, Filename: key}, nil
+		reason := "已有下载记录（歌手+歌名相同）"
+		if relPath := SongFileRelPath(song, dedupSet); relPath != "" {
+			reason = "文件已存在：" + relPath
+		}
+		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusSkipped, reason)
+		return &DownloadedSong{Skipped: true, Filename: key, Warning: reason}, nil
 	}
 
 	var (
@@ -482,7 +594,7 @@ func DownloadWithDedupCheckWithTemplate(song *model.Song, outDir string, withCov
 		result, dlErr = SaveSongToFileWithTemplate(song, outDir, withCover, withLyrics, filenameTemplate)
 	}
 	if dlErr != nil {
-		_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusFailed, dlErr.Error())
+		_ = saveFailedDownloadRecord(song, withCover, dlErr.Error())
 		return result, dlErr
 	}
 

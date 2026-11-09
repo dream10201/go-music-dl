@@ -17,7 +17,7 @@ import (
 )
 
 // 扫盘对账：本地已经没有文件的歌，去重记录要一并回收，否则再下载会被判成「已下载」。
-func TestReconcileDownloadDedupWithScanDropsMissingTracks(t *testing.T) {
+func TestReconcileDownloadDedupWithScanKeepsMissingTracks(t *testing.T) {
 	initCollectionDBForTest(t)
 
 	keepSong := &model.Song{Name: "Keep", Artist: "Artist"}
@@ -44,8 +44,8 @@ func TestReconcileDownloadDedupWithScanDropsMissingTracks(t *testing.T) {
 	if !core.IsSongDownloaded(keepSong, index) {
 		t.Fatal("文件还在本地，去重记录不该被回收")
 	}
-	if core.IsSongDownloaded(dropSong, index) {
-		t.Fatal("文件已不在本地，去重记录应当被回收")
+	if !core.IsSongDownloaded(dropSong, index) {
+		t.Fatal("文件被搬走后去重记录仍应保留")
 	}
 }
 
@@ -70,48 +70,8 @@ func TestReconcileDownloadDedupWithScanKeepsEntriesWhenScanIsEmpty(t *testing.T)
 	}
 }
 
-// 旧去重记录没有文件路径：磁盘上已经没有这首歌时，下载前要把它清掉。
-func TestResolveLegacyDedupForSongForgetsMissingFile(t *testing.T) {
-	initCollectionDBForTest(t)
-
-	downloadDir := t.TempDir()
-	withLocalMusicDownloadDir(t, downloadDir)
-
-	song := &model.Song{Name: "Gone", Artist: "Artist"}
-	// 索引里还留着这首歌的行（还没被扫盘清掉），但文件确实不在磁盘上。
-	if err := db.Create(&LocalMusicIndex{ID: encodeLocalMusicID("Gone.mp3"), RelPath: "Gone.mp3", Name: "Gone", Artist: "Artist"}).Error; err != nil {
-		t.Fatalf("seed index row: %v", err)
-	}
-	if err := core.SaveDownloadDedupEntry(song.Name, song.Artist, ""); err != nil {
-		t.Fatalf("seed legacy dedup entry: %v", err)
-	}
-	t.Cleanup(func() { _ = core.ForgetDownloadedSong(song.Name, song.Artist, "") })
-
-	index, err := core.LoadDownloadDedupSet()
-	if err != nil {
-		t.Fatalf("LoadDownloadDedupSet: %v", err)
-	}
-	if !core.IsSongDownloaded(song, index) {
-		t.Fatal("前置条件：旧记录应当先能被命中")
-	}
-
-	resolveLegacyDedupForSong(index, song)
-
-	if core.IsSongDownloaded(song, index) {
-		t.Fatal("文件已不在磁盘上，旧去重记录应被回收")
-	}
-	reloaded, err := core.LoadDownloadDedupSet()
-	if err != nil {
-		t.Fatalf("LoadDownloadDedupSet after resolve: %v", err)
-	}
-	if core.IsSongDownloaded(song, reloaded) {
-		t.Fatal("回收结果需要写回数据库，不能只改内存")
-	}
-}
-
-// 全量扫描已经把旧索引行清空时，也必须能判断旧去重记录对应的文件已经不在
-// 下载目录里。否则当下载目录只剩这一首歌时，删除文件后仍会一直「跳过」。
-func TestResolveLegacyDedupForSongForgetsMissingFileWhenIndexWasSwept(t *testing.T) {
+// 旧去重记录没有文件路径且磁盘上也找不到文件：记录仍保留，不会重复下载。
+func TestResolveLegacyDedupForSongKeepsEntryWhenFileMissing(t *testing.T) {
 	initCollectionDBForTest(t)
 
 	withLocalMusicDownloadDir(t, t.TempDir())
@@ -126,14 +86,9 @@ func TestResolveLegacyDedupForSongForgetsMissingFileWhenIndexWasSwept(t *testing
 	if err != nil {
 		t.Fatalf("LoadDownloadDedupSet: %v", err)
 	}
-	if !core.IsSongDownloaded(song, index) {
-		t.Fatal("前置条件：旧记录应当先能被命中")
-	}
-
 	resolveLegacyDedupForSong(index, song)
-
-	if core.IsSongDownloaded(song, index) {
-		t.Fatal("扫描已确认下载目录为空，旧去重记录不能被保留")
+	if !core.IsSongDownloaded(song, index) {
+		t.Fatal("文件被搬走后旧去重记录仍应保留")
 	}
 }
 
@@ -196,8 +151,8 @@ func TestResolveLegacyDedupForSongDoesNotUseFuzzyTitleMatch(t *testing.T) {
 
 	resolveLegacyDedupForSong(index, song)
 
-	if core.IsSongDownloaded(song, index) {
-		t.Fatal("相似歌名的文件不能替代原歌曲的去重记录")
+	if got := core.SongFileRelPath(song, index); got != "" {
+		t.Fatalf("相似歌名的文件路径不能回填到原歌曲的去重记录，got %q", got)
 	}
 }
 

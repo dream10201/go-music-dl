@@ -1925,6 +1925,7 @@ body.vg-open .aplayer.aplayer-fixed {
 .download-records-table tbody tr { transition: background 0.16s ease; }
 .download-records-table tbody tr:hover { background: #f8fafc; }
 .download-record-name { max-width: 205px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-main); font-weight: 700; }
+.download-record-reason { max-width: 205px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78em; color: var(--text-sub); }
 .download-record-artist { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-sub); }
 .download-record-source { color: #047857; font-size: 12px; font-weight: 700; }
 .download-record-status { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 58px; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
@@ -2886,6 +2887,7 @@ body.karaoke-lyrics-active .aplayer .aplayer-lrc p.aplayer-lrc-current {
 .queue-refresh, .queue-secondary-action { background:#f0fdf4; color:#047857; border-color:#cce7da; }
 .queue-refresh:hover:not(:disabled), .queue-secondary-action:hover:not(:disabled) { background:#d1fae5; border-color:#34d399; }
 .queue-filter select { padding:6px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#334155; }
+.queue-search-input { padding:6px 10px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:#334155; font-size:12px; min-width:180px; }
 .queue-note { color:#64748b; font-size:12px; line-height:1.6; }
 #download-queue-error { color:#b91c1c; font-size:12px; }
 .queue-task { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 14px; border-bottom:1px solid #edf2f7; }

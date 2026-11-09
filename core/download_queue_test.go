@@ -65,7 +65,7 @@ func TestDownloadQueueRecoveryContinuesAndKeepsTerminalStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := q.finish(first.ID, DownloadTaskResult{Status: DownloadStatusSuccess}, nil); err != nil {
+	if err := q.finish(first.ID, DownloadTaskResult{Status: DownloadStatusSuccess}, nil, 0); err != nil {
 		t.Fatal(err)
 	}
 	interrupted, err := q.claim()
@@ -97,7 +97,7 @@ func TestDownloadQueueRecoveryContinuesAndKeepsTerminalStates(t *testing.T) {
 		if i == 1 {
 			processErr = errors.New("network unavailable")
 		}
-		if err = q.finish(task.ID, result, processErr); err != nil {
+		if err = q.finish(task.ID, result, processErr, 0); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -221,7 +221,7 @@ func TestDownloadQueueRemoveAndClearKeepInFlightIdentityUntilFinished(t *testing
 	if next, err := q.claim(); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatal("cleared task was claimed", next, err)
 	}
-	if err := q.finish(active.ID, DownloadTaskResult{Status: DownloadStatusSuccess, Path: "/keep/audio.mp3"}, nil); err != nil {
+	if err := q.finish(active.ID, DownloadTaskResult{Status: DownloadStatusSuccess, Path: "/keep/audio.mp3"}, nil, 0); err != nil {
 		t.Fatal(err)
 	}
 	_, total, counts, err = q.List(1, 50, "")
@@ -250,5 +250,28 @@ func TestDownloadQueueClearDoesNotRestoreRemovedTaskOnRestart(t *testing.T) {
 	var count int64
 	if err := q.db.Model(&DownloadTask{}).Count(&count).Error; err != nil || count != 0 {
 		t.Fatal(count, err)
+	}
+}
+
+func TestProcessWithRetryRetriesUntilSuccess(t *testing.T) {
+	calls := 0
+	process := func(DownloadTaskInput) (DownloadTaskResult, error) {
+		calls++
+		if calls < 3 {
+			return DownloadTaskResult{}, errors.New("transient")
+		}
+		return DownloadTaskResult{Status: DownloadStatusSuccess}, nil
+	}
+	result, err, retries := processWithRetry(context.Background(), process, DownloadTaskInput{}, 0)
+	if err != nil || retries != 2 || result.Status != DownloadStatusSuccess {
+		t.Fatal(err, retries, result)
+	}
+	calls = 0
+	_, err, retries = processWithRetry(context.Background(), func(DownloadTaskInput) (DownloadTaskResult, error) {
+		calls++
+		return DownloadTaskResult{}, errors.New("permanent")
+	}, DownloadTaskInput{}, 0)
+	if err == nil || retries != downloadRetryLimit || calls != downloadRetryLimit+1 {
+		t.Fatal(err, retries, calls)
 	}
 }
