@@ -129,19 +129,24 @@ func (m *Migu) GetDownloadInfo(song *model.Song) (*DownloadInfo, error) {
 		}
 	}
 
-	requestTones := []string{"ZQ32", targetFormat, "PQ"}
+	requestTones := []string{"ZQ32", targetFormat, "SQ", "HQ", "PQ"}
 	responses := make([]*miguListenResponse, 0, len(requestTones))
 	seenTones := make(map[string]struct{}, len(requestTones))
 	var fetchErr error
+	gotURL := false
 	for _, tone := range requestTones {
 		if _, ok := seenTones[tone]; ok {
 			continue
 		}
 		seenTones[tone] = struct{}{}
+		if gotURL && tone != targetFormat && tone != "PQ" {
+			continue
+		}
 
 		resp, err := m.fetchListenInfo(contentID, copyrightID, songID, albumID, resourceType, tone)
 		if err == nil {
 			responses = append(responses, resp)
+			gotURL = gotURL || strings.TrimSpace(resp.Data.URL) != ""
 		} else if fetchErr == nil {
 			fetchErr = err
 		}
