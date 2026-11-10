@@ -791,8 +791,7 @@ function showToast(title, message = "", type = "info", duration = 0) {
       toast.remove();
       return;
     }
-    toast.classList.add("app-toast-hide");
-    window.setTimeout(() => toast.remove(), 220);
+    toast.remove();
   };
   toast.querySelector(".app-toast-close")?.addEventListener("click", () => close());
   if (duration > 0) {
@@ -4371,7 +4370,7 @@ async function saveCookies() {
 }
 
 function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  window.scrollTo(0, 0);
 }
 
 // ==========================================
@@ -6310,17 +6309,7 @@ function removeSongFromCollection(btn, colId, originalSongId, originalSource) {
     .then((r) => r.json())
     .then((res) => {
       if (res.error) return alert(res.error);
-      const card = btn.closest(".song-card");
-      if (card) {
-        card.style.transition = "all 0.3s";
-        card.style.opacity = "0";
-        card.style.transform = "translateX(30px)";
-        setTimeout(() => {
-          refreshCurrentPageContent();
-        }, 300);
-      } else {
-        refreshCurrentPageContent();
-      }
+      refreshCurrentPageContent();
     });
 }
 

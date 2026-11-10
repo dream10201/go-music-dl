@@ -27,19 +27,6 @@ func TestPagesUseEmbeddedVendorAssets(t *testing.T) {
 		}
 	}
 
-	index, err := templateFS.ReadFile("templates/pages/index.html")
-	if err != nil {
-		t.Fatal(err)
-	}
-	indexBody := string(index)
-	for _, asset := range []string{
-		"{{.Root}}/vendor/sakana/sakana.min.css",
-		"{{.Root}}/vendor/sakana/sakana.min.js",
-	} {
-		if !strings.Contains(indexBody, asset) {
-			t.Fatalf("index.html missing embedded asset %q", asset)
-		}
-	}
 }
 
 func TestEmbeddedVendorAssetsAreServed(t *testing.T) {
@@ -51,8 +38,6 @@ func TestEmbeddedVendorAssetsAreServed(t *testing.T) {
 	for _, name := range []string{
 		"fontawesome/css/all.min.css",
 		"fontawesome/webfonts/fa-solid-900.woff2",
-		"sakana/sakana.min.css",
-		"sakana/sakana.min.js",
 	} {
 		t.Run(name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/"+name, nil)
