@@ -185,8 +185,10 @@ func registerSearchDownloadRoute(api *gin.RouterGroup, queue *core.DownloadQueue
 		if req.DryRun {
 			payload := gin.H{"token": cacheSearchDownloadResult(result), "type": result.SearchType}
 			if result.SearchType == "song" {
-				downloadable, invalid := splitDownloadableSongs(result.Songs)
+				kept := filterSongsForDisplay(result.Songs, core.GetWebSettings())
+				downloadable, invalid := splitDownloadableSongs(kept)
 				payload["songs"] = len(downloadable)
+				payload["skipped_filtered"] = len(result.Songs) - len(kept)
 				payload["skipped_invalid"] = invalid
 			} else {
 				tracks := 0
@@ -210,6 +212,9 @@ func registerSearchDownloadRoute(api *gin.RouterGroup, queue *core.DownloadQueue
 			containers = len(result.Playlists)
 			songs, failedLabels, failedCount = collectSearchContainerSongs(result.SearchType, result.Playlists)
 		}
+		settings := core.GetWebSettings()
+		fetched := len(songs)
+		songs = filterSongsForDisplay(songs, settings)
 		downloadable, invalid := splitDownloadableSongs(songs)
 		if len(downloadable) == 0 {
 			c.JSON(400, gin.H{"error": "没有可加入下载队列的歌曲", "failed_containers": failedCount})
@@ -219,7 +224,6 @@ func registerSearchDownloadRoute(api *gin.RouterGroup, queue *core.DownloadQueue
 			c.JSON(400, gin.H{"error": fmt.Sprintf("歌曲超过 %d 首，请缩小搜索范围后再下载；本次未加入队列", searchDownloadMaxSongs)})
 			return
 		}
-		settings := core.GetWebSettings()
 		inputs := make([]core.DownloadTaskInput, 0, len(downloadable))
 		for _, song := range downloadable {
 			inputs = append(inputs, core.DownloadTaskInput{Song: song, Directory: core.DownloadDirOrDefault(settings.DownloadDir), FilenameTemplate: settings.DownloadFilenameTemplate, Embed: req.Embed})
@@ -233,7 +237,8 @@ func registerSearchDownloadRoute(api *gin.RouterGroup, queue *core.DownloadQueue
 			"type":              result.SearchType,
 			"added":             added,
 			"existing":          len(inputs) - added,
-			"total":             len(songs),
+			"total":             fetched,
+			"skipped_filtered":  fetched - len(songs),
 			"containers":        containers,
 			"failed_containers": failedCount,
 			"failed_labels":     failedLabels,

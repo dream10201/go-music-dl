@@ -15,10 +15,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
 	"github.com/guohuiyuan/go-music-dl/lib/model"
+	"golang.org/x/text/width"
 )
 
 //go:embed templates/*
@@ -303,7 +306,7 @@ func splitVersionFilterKeywords(raw string) []string {
 			return false
 		}
 	}) {
-		value = strings.ToLower(strings.TrimSpace(value))
+		value = normalizeVersionFilterText(strings.TrimSpace(value))
 		if value == "" {
 			continue
 		}
@@ -314,6 +317,43 @@ func splitVersionFilterKeywords(raw string) []string {
 		keywords = append(keywords, value)
 	}
 	return keywords
+}
+
+func normalizeVersionFilterText(value string) string {
+	return strings.ToLower(width.Fold.String(value))
+}
+
+func isVersionFilterWordRune(r rune) bool {
+	return (unicode.IsLetter(r) || unicode.IsDigit(r)) &&
+		!unicode.In(r, unicode.Han, unicode.Hiragana, unicode.Katakana, unicode.Hangul)
+}
+
+// nameHasVersionKeyword reports whether name contains a keyword as a whole
+// word. Keywords must already be normalized by splitVersionFilterKeywords.
+func nameHasVersionKeyword(name string, keywords []string) bool {
+	name = normalizeVersionFilterText(name)
+	for _, keyword := range keywords {
+		first, _ := utf8.DecodeRuneInString(keyword)
+		last, _ := utf8.DecodeLastRuneInString(keyword)
+		for offset := 0; ; {
+			idx := strings.Index(name[offset:], keyword)
+			if idx < 0 {
+				break
+			}
+			start := offset + idx
+			end := start + len(keyword)
+			before, _ := utf8.DecodeLastRuneInString(name[:start])
+			after, _ := utf8.DecodeRuneInString(name[end:])
+			joinedBefore := start > 0 && isVersionFilterWordRune(first) && isVersionFilterWordRune(before)
+			joinedAfter := end < len(name) && isVersionFilterWordRune(last) && isVersionFilterWordRune(after)
+			if !joinedBefore && !joinedAfter {
+				return true
+			}
+			_, size := utf8.DecodeRuneInString(name[start:])
+			offset = start + size
+		}
+	}
+	return false
 }
 
 func filterSongsForDisplay(songs []model.Song, settings core.WebSettings) []model.Song {
@@ -331,15 +371,7 @@ func filterSongsForDisplay(songs []model.Song, settings core.WebSettings) []mode
 			continue
 		}
 		if settings.FilterVersionKeywords && len(keywords) > 0 {
-			name := strings.ToLower(song.Name)
-			blocked := false
-			for _, keyword := range keywords {
-				if strings.Contains(name, keyword) {
-					blocked = true
-					break
-				}
-			}
-			if blocked {
+			if nameHasVersionKeyword(song.Name, keywords) {
 				continue
 			}
 		}

@@ -22,6 +22,7 @@ const (
 	DefaultCLIPageSize              = 20
 	DefaultWebConcurrency           = 3
 	DefaultDownloadTipDuration      = 8
+	DefaultVersionFilterKeywords    = "Live, Remix, Demo, DJ, Cover, Instrumental, Inst, Karaoke, Sped Up, Slowed, 现场, 翻唱, 伴奏, 铃声, 片段, 试听, 加速, 降速"
 	webSettingsKey                  = "web_settings"
 	webAuthSettingsKey              = "web_auth_settings"
 )
@@ -193,7 +194,7 @@ func defaultWebSettings() WebSettings {
 		DownloadConcurrency:      DefaultWebConcurrency,
 		DownloadTipDuration:      DefaultDownloadTipDuration,
 		FilterVersionKeywords:    false,
-		VersionFilterKeywords:    "Live, Remix, Demo",
+		VersionFilterKeywords:    DefaultVersionFilterKeywords,
 		FilterShortTracks:        false,
 		NormalizeChineseVariants: true,
 		// 默认不配远程签名服务：soda 包会优先用本机官方客户端的 bdms.node 签名。
@@ -246,7 +247,7 @@ func normalizeWebSettings(settings WebSettings) WebSettings {
 	}
 	settings.VersionFilterKeywords = strings.TrimSpace(settings.VersionFilterKeywords)
 	if settings.VersionFilterKeywords == "" {
-		settings.VersionFilterKeywords = "Live, Remix, Demo"
+		settings.VersionFilterKeywords = DefaultVersionFilterKeywords
 	}
 	if len([]rune(settings.VersionFilterKeywords)) > 240 {
 		settings.VersionFilterKeywords = string([]rune(settings.VersionFilterKeywords)[:240])

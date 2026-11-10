@@ -128,7 +128,7 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if defaults.FilterVersionKeywords || defaults.FilterShortTracks {
 		t.Fatalf("default search filters should be disabled: %#v", defaults)
 	}
-	if defaults.VersionFilterKeywords != "Live, Remix, Demo" {
+	if defaults.VersionFilterKeywords != DefaultVersionFilterKeywords {
 		t.Fatalf("default VersionFilterKeywords mismatch: %q", defaults.VersionFilterKeywords)
 	}
 	if !defaults.NormalizeChineseVariants {

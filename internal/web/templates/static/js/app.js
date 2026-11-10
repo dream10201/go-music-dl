@@ -22,6 +22,8 @@ const DOWNLOAD_DIR_PRESET_VALUES = [
 const DOWNLOAD_DIR_PRESETS = new Set(DOWNLOAD_DIR_PRESET_VALUES);
 const DEFAULT_DOWNLOAD_TIP_DURATION = 8;
 const OPEN_CONFIG_QUERY = "open_config";
+const DEFAULT_VERSION_FILTER_KEYWORDS =
+  "Live, Remix, Demo, DJ, Cover, Instrumental, Inst, Karaoke, Sped Up, Slowed, 现场, 翻唱, 伴奏, 铃声, 片段, 试听, 加速, 降速";
 
 let webSettings = {
   embedDownload: true,
@@ -39,7 +41,7 @@ let webSettings = {
   cliPageSize: DEFAULT_CLI_PAGE_SIZE,
   autoSwitchInvalidSources: false,
   filterVersionKeywords: false,
-  versionFilterKeywords: "Live, Remix, Demo",
+  versionFilterKeywords: DEFAULT_VERSION_FILTER_KEYWORDS,
   filterShortTracks: false,
   normalizeChineseVariants: true,
   sodaSignerUrl: "",
@@ -65,7 +67,7 @@ function normalizeWebSettings(raw) {
     cliPageSize: DEFAULT_CLI_PAGE_SIZE,
     autoSwitchInvalidSources: false,
     filterVersionKeywords: false,
-    versionFilterKeywords: "Live, Remix, Demo",
+    versionFilterKeywords: DEFAULT_VERSION_FILTER_KEYWORDS,
     filterShortTracks: false,
     normalizeChineseVariants: true,
     sodaSignerUrl: "",
@@ -131,7 +133,7 @@ function normalizeWebSettings(raw) {
   }
   if (typeof raw.versionFilterKeywords === "string") {
     next.versionFilterKeywords =
-      raw.versionFilterKeywords.trim() || "Live, Remix, Demo";
+      raw.versionFilterKeywords.trim() || DEFAULT_VERSION_FILTER_KEYWORDS;
   }
   if (typeof raw.filterShortTracks === "boolean") {
     next.filterShortTracks = raw.filterShortTracks;
@@ -3699,7 +3701,7 @@ async function saveCookies() {
     )?.checked,
     versionFilterKeywords:
       document.getElementById("setting-version-filter-keywords")?.value ||
-      "Live, Remix, Demo",
+      DEFAULT_VERSION_FILTER_KEYWORDS,
     filterShortTracks: !!document.getElementById(
       "setting-filter-short-tracks",
     )?.checked,
@@ -4664,7 +4666,7 @@ async function downloadWholeCollection(button) {
     }
     const title = skippedInvalid > 0 ? "已加入下载队列（部分跳过）" : "完整曲目已加入队列";
     const type = skippedInvalid > 0 ? "warning" : "success";
-    showToast(title, `共获取 ${data.total} 首，新增 ${data.added} 首，队列中已存在 ${data.existing} 首${skippedInvalidText}。`, type, downloadNoticeDuration());
+    showToast(title, `共获取 ${data.total} 首，新增 ${data.added} 首，队列中已存在 ${data.existing} 首${data.skipped_filtered ? `，按搜索过滤设置排除 ${data.skipped_filtered} 首` : ""}${skippedInvalidText}。`, type, downloadNoticeDuration());
     await openDownloadRecordsModal();
   } catch (error) {
     showToast("整单下载失败", error.message || "请稍后重试", "error", downloadNoticeDuration());
@@ -4712,6 +4714,7 @@ async function downloadAllSearchResults(button) {
     if (preview.type === "song") {
       if (!preview.songs) throw new Error("搜索结果中没有可下载的歌曲");
       message = `将把「${payload.q}」的全部搜索结果 ${preview.songs} 首歌曲（含所有分页）加入下载队列？`;
+      if (preview.skipped_filtered) message += `已按搜索过滤设置排除 ${preview.skipped_filtered} 首。`;
     } else {
       const unit = searchDownloadUnit(preview.type);
       message = `将下载「${payload.q}」搜索到的全部 ${preview.containers} ${unit}（含所有分页`;
@@ -4723,6 +4726,7 @@ async function downloadAllSearchResults(button) {
     const data = await postSearchDownload({...payload, token: preview.token, request_id: createDownloadRequestID()});
     let detail = `共 ${data.total} 首，新增 ${data.added} 首，队列中已存在 ${data.existing} 首`;
     if (data.containers) detail = `${data.containers} ${searchDownloadUnit(data.type)}，` + detail;
+    if (data.skipped_filtered) detail += `，按搜索过滤设置排除 ${data.skipped_filtered} 首`;
     if (data.skipped_invalid) detail += `，跳过缺少 ID 或音源 ${data.skipped_invalid} 首`;
     if (data.failed_containers) {
       detail += `，${data.failed_containers} ${searchDownloadUnit(data.type)}获取曲目失败`;

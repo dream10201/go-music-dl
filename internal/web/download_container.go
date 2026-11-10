@@ -64,6 +64,8 @@ func registerDownloadContainerRoute(api *gin.RouterGroup, queue *core.DownloadQu
 			c.JSON(400, gin.H{"error": "获取完整曲目失败：" + err.Error()})
 			return
 		}
+		fetched := len(songs)
+		songs = filterSongsForDisplay(songs, settings)
 		if len(songs) == 0 {
 			c.JSON(400, gin.H{"error": "歌单或专辑中没有可下载的歌曲"})
 			return
@@ -106,11 +108,12 @@ func registerDownloadContainerRoute(api *gin.RouterGroup, queue *core.DownloadQu
 			return
 		}
 		c.JSON(http.StatusAccepted, gin.H{
-			"added":           added,
-			"existing":        len(inputs) - added,
-			"total":           len(songs),
-			"skipped_invalid": skippedInvalid,
-			"skipped_songs":   skippedSongs,
+			"added":            added,
+			"existing":         len(inputs) - added,
+			"total":            fetched,
+			"skipped_filtered": fetched - len(songs),
+			"skipped_invalid":  skippedInvalid,
+			"skipped_songs":    skippedSongs,
 		})
 	})
 }
