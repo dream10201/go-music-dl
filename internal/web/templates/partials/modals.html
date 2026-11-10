@@ -48,14 +48,6 @@
                     </label>
                     <p class="setting-hint">音乐列表检测完成后，会自动选中当前列表全部无效歌曲并执行批量换源，默认开启。</p>
                 </div>
-                <button type="button" class="cookie-item setting-item setting-link-row" onclick="openAboutAppModal()">
-                    <span class="setting-link-icon"><i class="fa-solid fa-circle-info"></i></span>
-                    <span class="setting-link-body">
-                        <span class="setting-link-title">关于 go-music-dl</span>
-                        <span class="setting-link-desc">查看当前版本并检查 GitHub 是否有新版</span>
-                    </span>
-                    <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
-                </button>
             </section>
 
             <section id="settings-panel-download" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-download" data-settings-panel="download" hidden>
@@ -258,25 +250,6 @@
 
             <div class="settings-save-bar">
                 <button type="button" id="settings-save-button" class="btn-save" onclick="saveCookies()">保存设置</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div id="appUpdateModal" class="modal-overlay" style="z-index: 1008;">
-    <div class="modal app-update-modal">
-        <div class="modal-header">
-            <div>
-                <h3 id="appUpdateTitle">检查更新</h3>
-                <p id="appUpdateSummary" class="app-update-summary">正在读取 GitHub 版本信息</p>
-            </div>
-            <div class="modal-close" onclick="closeUpdateModal()"><i class="fa-solid fa-xmark"></i></div>
-        </div>
-        <div class="modal-body">
-            <span id="updateCheckStatus" class="setting-inline-status"></span>
-            <div class="update-modal-actions">
-                <button type="button" class="btn-pill btn-pill-dl" onclick="closeUpdateModal()">关闭</button>
-                <button type="button" id="appUpdateOpenRepoBtn" class="btn-pill btn-pill-primary" onclick="openLatestUpdatePage('release')"><i class="fa-solid fa-arrow-up-right-from-square"></i> 打开发布页</button>
             </div>
         </div>
     </div>

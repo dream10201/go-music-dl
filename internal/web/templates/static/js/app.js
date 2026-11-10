@@ -22,17 +22,8 @@ const DOWNLOAD_DIR_PRESET_VALUES = [
   "/app/data",
 ];
 const DOWNLOAD_DIR_PRESETS = new Set(DOWNLOAD_DIR_PRESET_VALUES);
-const DEFAULT_UPDATE_REPO_URL = "https://github.com/guohuiyuan/go-music-dl";
-const DEFAULT_GITHUB_PROXY_URL = "https://edgeone.gh-proxy.com";
 const DEFAULT_DOWNLOAD_TIP_DURATION = 8;
 const OPEN_CONFIG_QUERY = "open_config";
-const GITHUB_PROXY_PRESETS = [
-  "https://edgeone.gh-proxy.com",
-  "https://hk.gh-proxy.com/",
-  "https://gh-proxy.com/",
-  "https://gh.llkk.cc",
-];
-
 function isLocalMusicSourceValue(source) {
   const value = String(source || "").trim();
   return value === LOCAL_MUSIC_SOURCE || value === LEGACY_LOCAL_MUSIC_SOURCE;
@@ -52,15 +43,11 @@ let webSettings = {
   webdavDir: "music-dl",
   webPageSize: DEFAULT_WEB_PAGE_SIZE,
   cliPageSize: DEFAULT_CLI_PAGE_SIZE,
-  autoCheckUpdate: true,
   autoSwitchInvalidSources: true,
   filterVersionKeywords: false,
   versionFilterKeywords: "Live, Remix, Demo",
   filterShortTracks: false,
   normalizeChineseVariants: true,
-  updateRepoUrl: DEFAULT_UPDATE_REPO_URL,
-  githubProxyEnabled: false,
-  githubProxyUrl: DEFAULT_GITHUB_PROXY_URL,
   sodaSignerUrl: "",
   sodaSignerToken: "",
   sodaClientDir: "",
@@ -82,15 +69,11 @@ function normalizeWebSettings(raw) {
     webdavDir: "music-dl",
     webPageSize: DEFAULT_WEB_PAGE_SIZE,
     cliPageSize: DEFAULT_CLI_PAGE_SIZE,
-    autoCheckUpdate: true,
     autoSwitchInvalidSources: true,
     filterVersionKeywords: false,
     versionFilterKeywords: "Live, Remix, Demo",
     filterShortTracks: false,
     normalizeChineseVariants: true,
-    updateRepoUrl: DEFAULT_UPDATE_REPO_URL,
-    githubProxyEnabled: false,
-    githubProxyUrl: DEFAULT_GITHUB_PROXY_URL,
     sodaSignerUrl: "",
     sodaSignerToken: "",
     sodaClientDir: "",
@@ -146,9 +129,6 @@ function normalizeWebSettings(raw) {
   if (Number.isInteger(raw.cliPageSize) && raw.cliPageSize > 0) {
     next.cliPageSize = Math.min(raw.cliPageSize, 200);
   }
-  if (typeof raw.autoCheckUpdate === "boolean") {
-    next.autoCheckUpdate = raw.autoCheckUpdate;
-  }
   if (typeof raw.autoSwitchInvalidSources === "boolean") {
     next.autoSwitchInvalidSources = raw.autoSwitchInvalidSources;
   }
@@ -164,21 +144,6 @@ function normalizeWebSettings(raw) {
   }
   if (typeof raw.normalizeChineseVariants === "boolean") {
     next.normalizeChineseVariants = raw.normalizeChineseVariants;
-  }
-  if (
-    typeof raw.updateRepoUrl === "string" &&
-    raw.updateRepoUrl.trim() !== ""
-  ) {
-    next.updateRepoUrl = raw.updateRepoUrl.trim();
-  }
-  if (typeof raw.githubProxyEnabled === "boolean") {
-    next.githubProxyEnabled = raw.githubProxyEnabled;
-  }
-  if (
-    typeof raw.githubProxyUrl === "string" &&
-    raw.githubProxyUrl.trim() !== ""
-  ) {
-    next.githubProxyUrl = raw.githubProxyUrl.trim();
   }
   if (typeof raw.sodaSignerUrl === "string") {
     next.sodaSignerUrl = raw.sodaSignerUrl.trim();
@@ -1635,7 +1600,7 @@ document.addEventListener("DOMContentLoaded", function () {
   bindSettingsTabs();
   bindAuthFloat();
   refreshAuthFloat();
-  fetchWebSettings().finally(() => maybeAutoCheckUpdate());
+  fetchWebSettings();
   bindPageNavigationEvents();
   initializePageContent(document);
   updateFloatPageNav();
@@ -3746,108 +3711,6 @@ function drawQRCodeToCanvas(text, canvas) {
   }
 }
 
-async function checkAppUpdate(options = {}) {
-  const status = document.getElementById("updateCheckStatus");
-  const repoURL =
-    options.repoURL || webSettings.updateRepoUrl || DEFAULT_UPDATE_REPO_URL;
-  // 版本检测默认与镜像并发竞速，谁先返回用谁；不绑定下载侧的 webSettings.githubProxyEnabled。
-  const proxyEnabled = options.proxyEnabled ?? true;
-  const proxyURL =
-    options.proxyURL || webSettings.githubProxyUrl || DEFAULT_GITHUB_PROXY_URL;
-  const params = new URLSearchParams({
-    repo: repoURL,
-    use_proxy: proxyEnabled ? "1" : "0",
-    proxy: proxyURL,
-  });
-
-  if (status) {
-    status.textContent = "正在检查...";
-    status.className = "setting-inline-status";
-  }
-  try {
-    const response = await fetch(
-      `${API_ROOT}/app_update/check?${params.toString()}`,
-    );
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || !payload || payload.error) {
-      throw new Error((payload && payload.error) || "检查更新失败");
-    }
-    if (status) {
-      status.textContent = payload.update_available
-        ? `发现新版本 v${payload.latest_version}`
-        : `已是最新版本 v${payload.current_version}`;
-      status.className = `setting-inline-status ${payload.update_available ? "success" : ""}`;
-    }
-    if (payload.update_available || options.showNoUpdate) {
-      openUpdateModal(payload);
-    }
-    return payload;
-  } catch (error) {
-    if (status) {
-      status.textContent = error.message || "检查更新失败";
-      status.className = "setting-inline-status error";
-    }
-    if (!options.silent) {
-      showToast("检查更新失败", error.message || "检查更新失败", "error");
-    }
-    return null;
-  }
-}
-
-function maybeAutoCheckUpdate() {
-  if (!webSettings.autoCheckUpdate) return;
-  const key = "musicdl:update_checked_at";
-  const now = Date.now();
-  try {
-    const last = Number(localStorage.getItem(key) || "0");
-    if (Number.isFinite(last) && now - last < 6 * 60 * 60 * 1000) {
-      return;
-    }
-    localStorage.setItem(key, String(now));
-  } catch (_) {}
-  checkAppUpdate({ silent: true });
-}
-
-function openUpdateModal(updateInfo = null) {
-  const modal = document.getElementById("appUpdateModal");
-  if (!modal) return;
-
-  if (updateInfo) {
-    modal.dataset.rawDownloadUrl =
-      updateInfo.download_url || updateInfo.release_url || "";
-    modal.dataset.downloadUrl =
-      updateInfo.proxied_url ||
-      updateInfo.download_url ||
-      updateInfo.release_url ||
-      "";
-    modal.dataset.releaseUrl = updateInfo.release_url || "";
-    const title = document.getElementById("appUpdateTitle");
-    const summary = document.getElementById("appUpdateSummary");
-    if (title) {
-      title.textContent = `关于 go-music-dl v${updateInfo.current_version || "-"}`;
-    }
-    if (summary) {
-      summary.textContent = `当前版本 v${updateInfo.current_version || "-"}，GitHub 最新版本 v${updateInfo.latest_version || "-"}`;
-    }
-  }
-
-  modal.style.display = "flex";
-}
-
-async function openAboutAppModal() {
-  const title = document.getElementById("appUpdateTitle");
-  if (title) title.textContent = "关于 go-music-dl";
-  const summary = document.getElementById("appUpdateSummary");
-  if (summary) summary.textContent = "正在读取 GitHub 版本信息...";
-  openUpdateModal();
-  await checkAppUpdate({ showNoUpdate: true, silent: true });
-}
-
-function closeUpdateModal() {
-  const modal = document.getElementById("appUpdateModal");
-  if (modal) modal.style.display = "none";
-}
-
 // ==========================================
 // 下载记录
 // ==========================================
@@ -4313,73 +4176,6 @@ async function openDownloadDirectory() {
   }
 }
 
-function proxiedGithubURL(rawURL, proxyURL, enabled) {
-  if (!enabled || !rawURL || !rawURL.startsWith("https://github.com/")) {
-    return rawURL;
-  }
-  return `${(proxyURL || "").replace(/\/$/, "")}/${rawURL}`;
-}
-
-function openClientExternalURL(url, popup = null) {
-  if (popup && !popup.closed) {
-    try {
-      popup.opener = null;
-    } catch (_) {}
-    popup.location.href = url;
-    return true;
-  }
-
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (opened) {
-    return true;
-  }
-
-  window.location.href = url;
-  return false;
-}
-
-async function openLatestUpdatePage(target = "download") {
-  const modal = document.getElementById("appUpdateModal");
-  const repoURL = webSettings.updateRepoUrl || DEFAULT_UPDATE_REPO_URL;
-  const proxyEnabled = !!webSettings.githubProxyEnabled;
-  const proxyURL = webSettings.githubProxyUrl || DEFAULT_GITHUB_PROXY_URL;
-  const popup = window.open("about:blank", "_blank");
-
-  let downloadURL = modal?.dataset.rawDownloadUrl || "";
-  let releaseURL = modal?.dataset.releaseUrl || "";
-  if (!downloadURL || !releaseURL) {
-    const payload = await checkAppUpdate({
-      repoURL,
-      proxyEnabled,
-      proxyURL,
-      showNoUpdate: true,
-      silent: true,
-    });
-    if (payload) {
-      downloadURL = payload.download_url || payload.release_url || downloadURL;
-      releaseURL = payload.release_url || releaseURL;
-      if (modal) {
-        modal.dataset.rawDownloadUrl = downloadURL;
-        modal.dataset.releaseUrl = releaseURL;
-      }
-    }
-  }
-
-  let url =
-    target === "release"
-      ? releaseURL || downloadURL
-      : downloadURL || releaseURL;
-  if (!url) {
-    if (popup && !popup.closed) {
-      popup.close();
-    }
-    showToast("无法打开下载页", "没有可用的 GitHub 链接", "error");
-    return;
-  }
-  url = proxiedGithubURL(url, proxyURL, proxyEnabled);
-  openClientExternalURL(url, popup);
-}
-
 let systemConfigLoadSequence = 0;
 let systemConfigLoadController = null;
 
@@ -4496,7 +4292,6 @@ async function saveCookies() {
       cliPageSizeInput?.value,
       DEFAULT_CLI_PAGE_SIZE,
     ),
-    autoCheckUpdate: webSettings.autoCheckUpdate,
     autoSwitchInvalidSources: !!document.getElementById(
       "setting-auto-switch-invalid-sources",
     )?.checked,
@@ -4512,9 +4307,6 @@ async function saveCookies() {
     normalizeChineseVariants: !!document.getElementById(
       "setting-normalize-chinese-variants",
     )?.checked,
-    updateRepoUrl: webSettings.updateRepoUrl || DEFAULT_UPDATE_REPO_URL,
-    githubProxyEnabled: !!webSettings.githubProxyEnabled,
-    githubProxyUrl: webSettings.githubProxyUrl || DEFAULT_GITHUB_PROXY_URL,
     sodaSignerUrl:
       document.getElementById("setting-soda-signer-url")?.value || "",
     sodaSignerToken:

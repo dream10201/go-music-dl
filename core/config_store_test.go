@@ -122,9 +122,6 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if defaults.DownloadTipDuration != DefaultDownloadTipDuration {
 		t.Fatalf("default DownloadTipDuration mismatch: got %d want %d", defaults.DownloadTipDuration, DefaultDownloadTipDuration)
 	}
-	if !defaults.AutoCheckUpdate {
-		t.Fatalf("default AutoCheckUpdate should be true")
-	}
 	if !defaults.AutoSwitchInvalidSources {
 		t.Fatalf("default AutoSwitchInvalidSources should be true")
 	}
@@ -136,15 +133,6 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	}
 	if !defaults.NormalizeChineseVariants {
 		t.Fatal("default NormalizeChineseVariants should be true")
-	}
-	if defaults.UpdateRepoURL != DefaultUpdateRepoURL {
-		t.Fatalf("default UpdateRepoURL mismatch: got %q want %q", defaults.UpdateRepoURL, DefaultUpdateRepoURL)
-	}
-	if defaults.GithubProxyEnabled {
-		t.Fatalf("default GithubProxyEnabled should be false")
-	}
-	if defaults.GithubProxyURL != DefaultGithubProxyURL {
-		t.Fatalf("default GithubProxyURL mismatch: got %q want %q", defaults.GithubProxyURL, DefaultGithubProxyURL)
 	}
 	if defaults.SodaSignerURL != "" || defaults.SodaSignerToken != "" {
 		t.Fatalf("default soda signer should be empty (fallback to local signer): got %q / %q", defaults.SodaSignerURL, defaults.SodaSignerToken)
@@ -165,15 +153,11 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		CliPageSize:              120,
 		DownloadConcurrency:      5,
 		DownloadTipDuration:      15,
-		AutoCheckUpdate:          false,
 		AutoSwitchInvalidSources: false,
 		FilterVersionKeywords:    true,
 		VersionFilterKeywords:    "Live; Demo",
 		FilterShortTracks:        true,
 		NormalizeChineseVariants: true,
-		UpdateRepoURL:            "https://github.com/example/fork",
-		GithubProxyEnabled:       true,
-		GithubProxyURL:           "https://gh-proxy.com/",
 	}); err != nil {
 		t.Fatalf("save web settings: %v", err)
 	}
@@ -194,15 +178,11 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		CliPageSize:              120,
 		DownloadConcurrency:      5,
 		DownloadTipDuration:      15,
-		AutoCheckUpdate:          false,
 		AutoSwitchInvalidSources: false,
 		FilterVersionKeywords:    true,
 		VersionFilterKeywords:    "Live; Demo",
 		FilterShortTracks:        true,
 		NormalizeChineseVariants: true,
-		UpdateRepoURL:            "https://github.com/example/fork",
-		GithubProxyEnabled:       true,
-		GithubProxyURL:           "https://gh-proxy.com/",
 		// 未配置远程签名器时保持为空 = 使用本机签名器；空 Token 保存时保留已保存的值。
 		SodaSignerToken: "",
 	}
@@ -239,20 +219,8 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if got.DownloadTipDuration != DefaultDownloadTipDuration {
 		t.Fatalf("custom save should fallback DownloadTipDuration to default: got %d want %d", got.DownloadTipDuration, DefaultDownloadTipDuration)
 	}
-	if got.AutoCheckUpdate {
-		t.Fatalf("custom save should keep AutoCheckUpdate false when omitted: %#v", got)
-	}
 	if got.AutoSwitchInvalidSources {
 		t.Fatalf("custom save should keep AutoSwitchInvalidSources false when omitted: %#v", got)
-	}
-	if got.UpdateRepoURL != DefaultUpdateRepoURL {
-		t.Fatalf("custom save should fallback UpdateRepoURL to default: got %q want %q", got.UpdateRepoURL, DefaultUpdateRepoURL)
-	}
-	if got.GithubProxyEnabled {
-		t.Fatalf("custom save should fallback GithubProxyEnabled to default false: %#v", got)
-	}
-	if got.GithubProxyURL != DefaultGithubProxyURL {
-		t.Fatalf("custom save should fallback GithubProxyURL to default: got %q want %q", got.GithubProxyURL, DefaultGithubProxyURL)
 	}
 	if got.SodaSignerURL != "" {
 		t.Fatalf("custom save should keep SodaSignerURL empty when omitted: got %q", got.SodaSignerURL)
@@ -282,8 +250,7 @@ func TestWebSettingsLegacyPayloadUsesCurrentSwitchDefaults(t *testing.T) {
 	t.Cleanup(resetConfigStateForTest)
 
 	legacySettings := map[string]any{
-		"downloadDir":     DefaultWebDownloadDir,
-		"autoCheckUpdate": true,
+		"downloadDir": DefaultWebDownloadDir,
 	}
 	data, err := json.Marshal(legacySettings)
 	if err != nil {

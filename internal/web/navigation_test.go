@@ -192,21 +192,6 @@ func TestAppJSIncludesAjaxNavigationEntryPoints(t *testing.T) {
 	if !strings.Contains(js, "refreshDownloadLinks(root);") {
 		t.Fatal("app.js missing download link refresh during page initialization")
 	}
-	if !strings.Contains(js, "function maybeAutoCheckUpdate()") {
-		t.Fatal("app.js missing auto update check")
-	}
-	if !strings.Contains(js, "function checkAppUpdate(options = {})") {
-		t.Fatal("app.js missing GitHub update check")
-	}
-	if !strings.Contains(js, "async function openAboutAppModal()") {
-		t.Fatal("app.js missing openAboutAppModal entry point")
-	}
-	if !strings.Contains(js, `async function openLatestUpdatePage(target = "download")`) {
-		t.Fatal("app.js missing openLatestUpdatePage helper")
-	}
-	if !strings.Contains(js, "function openClientExternalURL(url, popup = null)") {
-		t.Fatal("app.js missing client-side external opener")
-	}
 	if strings.Contains(js, "/app_update/open?url=") {
 		t.Fatal("app.js should not ask the server to open release pages")
 	}
@@ -407,8 +392,6 @@ func TestSettingsModalIncludesDownloadDirPresets(t *testing.T) {
 		`id="setting-download-filename-template"`,
 		`id="setting-auto-switch-invalid-sources"`,
 		`id="setting-soda-client-dir"`,
-		`onclick="openAboutAppModal()"`,
-		`关于 go-music-dl`,
 		`class="cookie-item setting-item setting-link-row"`,
 		`setting-link-icon`,
 		`setting-link-title`,
@@ -561,54 +544,6 @@ func TestInspectQueueUsesAdaptivePerSourceLimitingAndIsCancelable(t *testing.T) 
 	}
 	if got := strings.Count(js, "cancelPendingSongInspections();"); got < 2 {
 		t.Fatalf("cancelPendingSongInspections call count = %d, want at least 2", got)
-	}
-}
-
-func TestAppUpdateModalIsAboutOnly(t *testing.T) {
-	content, err := templateFS.ReadFile("templates/partials/modals.html")
-	if err != nil {
-		t.Fatalf("ReadFile(modals.html): %v", err)
-	}
-	html := string(content)
-	for _, want := range []string{
-		`id="appUpdateModal"`,
-		`id="appUpdateTitle"`,
-		`id="appUpdateSummary"`,
-		`id="updateCheckStatus"`,
-		`onclick="closeUpdateModal()"`,
-		`onclick="openLatestUpdatePage('release')"`,
-	} {
-		if !strings.Contains(html, want) {
-			t.Fatalf("app update modal missing %q", want)
-		}
-	}
-	for _, unwanted := range []string{
-		`id="updateRepoUrlInput"`,
-		`id="updateGithubProxyEnabled"`,
-		`id="updateGithubProxyDisabled"`,
-		`id="updateGithubProxyCustom"`,
-		`id="updateGithubProxyCustomRadio"`,
-		`name="update-github-proxy-url"`,
-		`name="update-github-proxy-mode"`,
-		`name="update-install-mode"`,
-		`id="updatePackageFile"`,
-		`id="appUpdateNotes"`,
-		`id="updateProxyTestStatus"`,
-		`onclick="testUpdateGithubProxy()"`,
-		`onclick="refreshUpdateModalCheck()"`,
-		`onclick="openLatestUpdatePage('download')"`,
-		`onchange="applyUpdateProxyVisibility()"`,
-		`installUpdateFromModal`,
-		`appUpdateInstallBtn`,
-		`重新检查`,
-		`前往 GitHub 下载`,
-		`从文件安装`,
-		`https://edgeone.gh-proxy.com`,
-		`https://gh.llkk.cc`,
-	} {
-		if strings.Contains(html, unwanted) {
-			t.Fatalf("app update modal should be minimal but contains %q", unwanted)
-		}
 	}
 }
 

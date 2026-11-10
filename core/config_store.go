@@ -22,8 +22,6 @@ const (
 	DefaultCLIPageSize              = 20
 	DefaultWebConcurrency           = 3
 	DefaultDownloadTipDuration      = 8
-	DefaultUpdateRepoURL            = "https://github.com/guohuiyuan/go-music-dl"
-	DefaultGithubProxyURL           = "https://edgeone.gh-proxy.com"
 	webSettingsKey                  = "web_settings"
 	webAuthSettingsKey              = "web_auth_settings"
 )
@@ -55,15 +53,11 @@ type WebSettings struct {
 	WebPageSize              int    `json:"webPageSize"`
 	CliPageSize              int    `json:"cliPageSize"`
 	DownloadConcurrency      int    `json:"downloadConcurrency"`
-	AutoCheckUpdate          bool   `json:"autoCheckUpdate"`
 	AutoSwitchInvalidSources bool   `json:"autoSwitchInvalidSources"`
 	FilterVersionKeywords    bool   `json:"filterVersionKeywords"`
 	VersionFilterKeywords    string `json:"versionFilterKeywords"`
 	FilterShortTracks        bool   `json:"filterShortTracks"`
 	NormalizeChineseVariants bool   `json:"normalizeChineseVariants"`
-	UpdateRepoURL            string `json:"updateRepoUrl"`
-	GithubProxyEnabled       bool   `json:"githubProxyEnabled"`
-	GithubProxyURL           string `json:"githubProxyUrl"`
 	SodaSignerURL            string `json:"sodaSignerUrl"`
 	SodaSignerToken          string `json:"sodaSignerToken"`
 	SodaClientDir            string `json:"sodaClientDir"`
@@ -198,15 +192,11 @@ func defaultWebSettings() WebSettings {
 		CliPageSize:              DefaultCLIPageSize,
 		DownloadConcurrency:      DefaultWebConcurrency,
 		DownloadTipDuration:      DefaultDownloadTipDuration,
-		AutoCheckUpdate:          true,
 		AutoSwitchInvalidSources: true,
 		FilterVersionKeywords:    false,
 		VersionFilterKeywords:    "Live, Remix, Demo",
 		FilterShortTracks:        false,
 		NormalizeChineseVariants: true,
-		UpdateRepoURL:            DefaultUpdateRepoURL,
-		GithubProxyEnabled:       false,
-		GithubProxyURL:           DefaultGithubProxyURL,
 		// 默认不配远程签名服务：soda 包会优先用本机官方客户端的 bdms.node 签名。
 		SodaSignerURL:   "",
 		SodaSignerToken: "",
@@ -261,14 +251,6 @@ func normalizeWebSettings(settings WebSettings) WebSettings {
 	}
 	if len([]rune(settings.VersionFilterKeywords)) > 240 {
 		settings.VersionFilterKeywords = string([]rune(settings.VersionFilterKeywords)[:240])
-	}
-	settings.UpdateRepoURL = strings.TrimSpace(settings.UpdateRepoURL)
-	if settings.UpdateRepoURL == "" {
-		settings.UpdateRepoURL = DefaultUpdateRepoURL
-	}
-	settings.GithubProxyURL = strings.TrimSpace(settings.GithubProxyURL)
-	if settings.GithubProxyURL == "" {
-		settings.GithubProxyURL = DefaultGithubProxyURL
 	}
 	settings.SodaSignerURL = strings.TrimSpace(settings.SodaSignerURL)
 	settings.SodaSignerToken = strings.TrimSpace(settings.SodaSignerToken)

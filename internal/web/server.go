@@ -631,7 +631,6 @@ func StartWithOptions(port string, opts StartOptions) {
 	RegisterQRLoginRoutes(configAPI)
 	RegisterCollectionRoutes(api)
 	RegisterLocalMusicRoutes(api)
-	RegisterUpdateRoutes(api)
 
 	queue, err := core.OpenDownloadQueue()
 	if err != nil {
