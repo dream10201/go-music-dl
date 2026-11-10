@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 	"unicode/utf16"
@@ -104,6 +105,20 @@ func (m *CookieManager) Save() {
 	})
 	// 🌟 确保写入前目录存在
 	os.MkdirAll("data", 0755)
+}
+
+var miguUIDCursor atomic.Uint64
+
+// NextMiguUID picks one uid from a list separated by commas, semicolons or
+// whitespace, advancing round-robin across calls.
+func NextMiguUID(raw string) string {
+	uids := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '，' || r == ';' || r == '；' || unicode.IsSpace(r)
+	})
+	if len(uids) == 0 {
+		return ""
+	}
+	return uids[(miguUIDCursor.Add(1)-1)%uint64(len(uids))]
 }
 
 func (m *CookieManager) Get(source string) string {
@@ -512,7 +527,7 @@ func GetDownloadFunc(source string) func(*model.Song) (string, error) {
 	case "kuwo":
 		return kuwo.New(c).GetDownloadURL
 	case "migu":
-		return migu.New(c).WithUID(CM.Get("migu_uid")).GetDownloadURL
+		return migu.New(c).WithUID(NextMiguUID(CM.Get("migu_uid"))).GetDownloadURL
 	case "soda":
 		return NewSodaClient(c).GetDownloadURL
 	case "bilibili":
