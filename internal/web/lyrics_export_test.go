@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/guohuiyuan/go-music-dl/core"
-	"github.com/guohuiyuan/music-lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
 )
 
 func TestLyricDownloadFilenameUsesAudioFilenameTemplate(t *testing.T) {

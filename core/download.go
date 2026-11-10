@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/guohuiyuan/music-lib/migu"
-	"github.com/guohuiyuan/music-lib/model"
-	"github.com/guohuiyuan/music-lib/soda"
-	"github.com/guohuiyuan/music-lib/utils"
+	"github.com/guohuiyuan/go-music-dl/lib/migu"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/soda"
+	"github.com/guohuiyuan/go-music-dl/lib/utils"
 )
 
 type DownloadedSong struct {

@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/guohuiyuan/music-lib/soda"
+	"github.com/guohuiyuan/go-music-dl/lib/soda"
 )
 
 // 汽水（LunaPC）会员曲目的整曲流只认 App 端逐请求签名（x-helios / x-medusa）。

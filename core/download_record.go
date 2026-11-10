@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/guohuiyuan/music-lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

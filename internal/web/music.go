@@ -19,10 +19,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
-	"github.com/guohuiyuan/music-lib/migu"
-	"github.com/guohuiyuan/music-lib/model"
-	"github.com/guohuiyuan/music-lib/soda"
-	"github.com/guohuiyuan/music-lib/utils"
+	"github.com/guohuiyuan/go-music-dl/lib/migu"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/soda"
+	"github.com/guohuiyuan/go-music-dl/lib/utils"
 )
 
 func importCollectionFromQuery(c *gin.Context, contentType string, source string, externalID string, fallbackLink string, fallbackTrackCount int) *importCollectionMeta {

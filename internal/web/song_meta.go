@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/guohuiyuan/music-lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
 )
 
 var artistKeywordSeparatorPattern = regexp.MustCompile(`(?i)\s+(?:feat(?:uring)?\.?|ft\.?|with|x)\s+`)

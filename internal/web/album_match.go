@@ -3,7 +3,7 @@ package web
 import (
 	"strings"
 
-	"github.com/guohuiyuan/music-lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
 )
 
 func normalizeLookupText(value string) string {

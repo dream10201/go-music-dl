@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/guohuiyuan/go-music-dl/core"
-	"github.com/guohuiyuan/music-lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
 )
 
 // 扫盘对账：本地已经没有文件的歌，去重记录要一并回收，否则再下载会被判成「已下载」。

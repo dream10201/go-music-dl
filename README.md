@@ -277,7 +277,7 @@ go-music-dl/
 
 ## 技术栈
 
-* **核心库**: [music-lib](https://github.com/guohuiyuan/music-lib) - 音乐平台搜索下载
+* **核心库**: [lib/](lib/) - 音乐平台搜索下载
 * **CLI 框架**: [Cobra](https://github.com/spf13/cobra) - 命令行工具
 * **Web 框架**: [Gin](https://github.com/gin-gonic/gin) - Web 框架
 * **TUI 框架**: [Bubble Tea](https://github.com/charmbracelet/bubbletea) - 终端界面

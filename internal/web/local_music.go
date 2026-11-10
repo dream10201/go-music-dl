@@ -23,8 +23,8 @@ import (
 	"github.com/dhowden/tag"
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
-	"github.com/guohuiyuan/music-lib/model"
-	"github.com/guohuiyuan/music-lib/utils"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/utils"
 	"gorm.io/gorm/clause"
 )
 

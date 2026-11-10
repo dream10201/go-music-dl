@@ -9,7 +9,6 @@ require (
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/gin-gonic/gin v1.11.0
 	github.com/glebarez/sqlite v1.11.0
-	github.com/guohuiyuan/music-lib v1.1.2-0.20261109063824-af5e6d8e0479
 	github.com/liuzl/gocc v0.0.0-20231231122217-0372e1059ca5
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.53.0
@@ -83,5 +82,3 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.46.1 // indirect
 )
-
-replace github.com/guohuiyuan/music-lib => github.com/dream10201/music-lib v1.1.2-0.20261110063918-d9f350a9c548

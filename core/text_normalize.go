@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/guohuiyuan/music-lib/model"
+	"github.com/guohuiyuan/go-music-dl/lib/model"
 	"github.com/liuzl/gocc"
 	"golang.org/x/text/unicode/norm"
 )
