@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/guohuiyuan/music-lib/migu"
 	"github.com/guohuiyuan/music-lib/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -264,12 +265,13 @@ func processDownloadTask(process DownloadTaskProcessor, input DownloadTaskInput)
 }
 
 // processWithRetry retries a failed download up to downloadRetryLimit times and
-// returns how many retries were made.
+// returns how many retries were made. A song the source reports as unavailable
+// is not retried.
 func processWithRetry(ctx context.Context, process DownloadTaskProcessor, input DownloadTaskInput, delay time.Duration) (DownloadTaskResult, error, int) {
 	retries := 0
 	for {
 		result, err := processDownloadTask(process, input)
-		if err == nil || retries >= downloadRetryLimit || ctx.Err() != nil {
+		if err == nil || retries >= downloadRetryLimit || ctx.Err() != nil || errors.Is(err, migu.ErrUnavailable) {
 			return result, err, retries
 		}
 		retries++

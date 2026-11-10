@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/guohuiyuan/music-lib/migu"
 	"github.com/guohuiyuan/music-lib/model"
 	"gorm.io/gorm"
 )
@@ -272,6 +273,14 @@ func TestProcessWithRetryRetriesUntilSuccess(t *testing.T) {
 		return DownloadTaskResult{}, errors.New("permanent")
 	}, DownloadTaskInput{}, 0)
 	if err == nil || retries != downloadRetryLimit || calls != downloadRetryLimit+1 {
+		t.Fatal(err, retries, calls)
+	}
+	calls = 0
+	_, err, retries = processWithRetry(context.Background(), func(DownloadTaskInput) (DownloadTaskResult, error) {
+		calls++
+		return DownloadTaskResult{}, fmt.Errorf("%w: 因版权原因暂不支持", migu.ErrUnavailable)
+	}, DownloadTaskInput{}, 0)
+	if err == nil || retries != 0 || calls != 1 {
 		t.Fatal(err, retries, calls)
 	}
 }

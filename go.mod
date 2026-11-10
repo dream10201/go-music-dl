@@ -96,4 +96,4 @@ require (
 	modernc.org/sqlite v1.46.1 // indirect
 )
 
-replace github.com/guohuiyuan/music-lib => github.com/dream10201/music-lib v1.1.2-0.20261109131552-2dba2982c0a2
+replace github.com/guohuiyuan/music-lib => github.com/dream10201/music-lib v1.1.2-0.20261110020443-3676b5f1c633
