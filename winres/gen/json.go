@@ -24,7 +24,7 @@ const resourceTemplate = `{
           "name": "%s",
           "version": "%s"
         },
-        "description": "Go Music DL desktop application",
+        "description": "Go Music DL",
         "minimum-os": "vista",
         "execution-level": "as invoker",
         "ui-access": false,
@@ -89,15 +89,9 @@ func main() {
 	specs := []resourceSpec{
 		{
 			outputFile:       "winres.json",
-			identityName:     "go-music-dl-desktop",
-			internalName:     "go-music-dl-desktop",
-			originalFileName: "go-music-dl-desktop.exe",
-		},
-		{
-			outputFile:       "desktop_go.winres.json",
-			identityName:     "music-dl-desktop-go",
-			internalName:     "music-dl-desktop-go",
-			originalFileName: "music-dl-desktop-go.exe",
+			identityName:     "go-music-dl",
+			internalName:     "go-music-dl",
+			originalFileName: "music-dl.exe",
 		},
 	}
 

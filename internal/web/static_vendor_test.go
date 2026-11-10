@@ -12,7 +12,6 @@ func TestPagesUseEmbeddedVendorAssets(t *testing.T) {
 	pages := []string{
 		"templates/pages/index.html",
 		"templates/pages/auth.html",
-		"templates/pages/render.html",
 	}
 	for _, page := range pages {
 		content, err := templateFS.ReadFile(page)
@@ -34,8 +33,6 @@ func TestPagesUseEmbeddedVendorAssets(t *testing.T) {
 	}
 	indexBody := string(index)
 	for _, asset := range []string{
-		"{{.Root}}/vendor/aplayer/APlayer.min.css",
-		"{{.Root}}/vendor/aplayer/APlayer.min.js",
 		"{{.Root}}/vendor/sakana/sakana.min.css",
 		"{{.Root}}/vendor/sakana/sakana.min.js",
 	} {
@@ -52,8 +49,6 @@ func TestEmbeddedVendorAssetsAreServed(t *testing.T) {
 	}
 	handler := http.FileServer(http.FS(assets))
 	for _, name := range []string{
-		"aplayer/APlayer.min.css",
-		"aplayer/APlayer.min.js",
 		"fontawesome/css/all.min.css",
 		"fontawesome/webfonts/fa-solid-900.woff2",
 		"sakana/sakana.min.css",

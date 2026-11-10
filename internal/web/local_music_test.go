@@ -41,41 +41,6 @@ func newLocalMusicTestRouter() *gin.Engine {
 	return r
 }
 
-func newAutoCacheHTTPRequest(body []byte) *http.Request {
-	req := httptest.NewRequest(http.MethodPost, "http://music.test"+RoutePrefix+"/local_music/auto_cache", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
-	req.Header.Set("Origin", "http://music.test")
-	return req
-}
-
-func withAutoCacheSettings(t *testing.T, settings core.WebSettings) {
-	t.Helper()
-
-	original := autoCacheSettingsProvider
-	autoCacheSettingsProvider = func() core.WebSettings { return settings }
-	t.Cleanup(func() {
-		autoCacheSettingsProvider = original
-	})
-}
-
-func waitForAutoCacheIdle(t *testing.T) {
-	t.Helper()
-	deadline := time.Now().Add(time.Second)
-	for {
-		autoCacheMu.Lock()
-		idle := len(autoCacheInFlight) == 0
-		autoCacheMu.Unlock()
-		if idle {
-			return
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("timed out waiting for auto-cache worker")
-		}
-		time.Sleep(time.Millisecond)
-	}
-}
-
 func waitForLocalMusicScanRefresh(t *testing.T) {
 	t.Helper()
 	deadline := time.Now().Add(time.Second)
@@ -279,7 +244,6 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 		`class="ctrl-btn local-music-upload-button is-folder"`,
 		`id="song-list-tools-popover"`,
 		`重复检测`,
-		`播放全部`,
 		`批量操作`,
 		`id="localMusicPageFileInput"`,
 		`id="localMusicPageFolderInput"`,
@@ -291,7 +255,6 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 		`data-source="local"`,
 		`class="tag tag-local"`,
 		`>本地</span>`,
-		`class="btn-circle btn-play"`,
 		`class="btn-circle btn-dl btn-lyric"`,
 		`class="btn-circle btn-dl btn-cover"`,
 		`class="btn-circle btn-delete-local"`,
@@ -324,13 +287,12 @@ func TestLocalMusicPageRendersSongListWithoutUnsupportedActions(t *testing.T) {
 		}
 	}
 
-	playIndex := strings.Index(body, `class="btn-circle btn-play"`)
 	favIndex := strings.Index(body, `onclick="openAddToCollectionModal(this)"`)
 	lyricIndex := strings.Index(body, `class="btn-circle btn-dl btn-lyric"`)
 	coverIndex := strings.Index(body, `class="btn-circle btn-dl btn-cover"`)
 	deleteIndex := strings.Index(body, `onclick="deleteLocalMusicFromButton(this)"`)
-	if !(playIndex < favIndex && favIndex < lyricIndex && lyricIndex < coverIndex && coverIndex < deleteIndex) {
-		t.Fatalf("local music page action order mismatch: play=%d fav=%d lyric=%d cover=%d delete=%d", playIndex, favIndex, lyricIndex, coverIndex, deleteIndex)
+	if !(favIndex < lyricIndex && lyricIndex < coverIndex && coverIndex < deleteIndex) {
+		t.Fatalf("local music page action order mismatch: fav=%d lyric=%d cover=%d delete=%d", favIndex, lyricIndex, coverIndex, deleteIndex)
 	}
 }
 
@@ -387,7 +349,6 @@ func TestManualCollectionLocalSongRendersLocalActionOrder(t *testing.T) {
 	}
 
 	required := []string{
-		`class="btn-circle btn-play"`,
 		`class="btn-circle btn-switch"`,
 		`removeSongFromCollection`,
 		`class="btn-circle btn-dl btn-lyric"`,
@@ -400,13 +361,12 @@ func TestManualCollectionLocalSongRendersLocalActionOrder(t *testing.T) {
 		}
 	}
 
-	playIndex := strings.Index(card, `class="btn-circle btn-play"`)
 	switchIndex := strings.Index(card, `class="btn-circle btn-switch"`)
 	removeIndex := strings.Index(card, `removeSongFromCollection`)
 	lyricIndex := strings.Index(card, `class="btn-circle btn-dl btn-lyric"`)
 	coverIndex := strings.Index(card, `class="btn-circle btn-dl btn-cover"`)
-	if !(playIndex < switchIndex && switchIndex < removeIndex && removeIndex < lyricIndex && lyricIndex < coverIndex) {
-		t.Fatalf("manual collection local song action order mismatch: play=%d switch=%d remove=%d lyric=%d cover=%d", playIndex, switchIndex, removeIndex, lyricIndex, coverIndex)
+	if !(switchIndex < removeIndex && removeIndex < lyricIndex && lyricIndex < coverIndex) {
+		t.Fatalf("manual collection local song action order mismatch: switch=%d remove=%d lyric=%d cover=%d", switchIndex, removeIndex, lyricIndex, coverIndex)
 	}
 }
 
@@ -758,222 +718,6 @@ func TestDeleteLocalMusicClearsDownloadDedupEntry(t *testing.T) {
 	}
 }
 
-func TestAutoCacheEndpointRequiresSameOrigin(t *testing.T) {
-	body, err := json.Marshal(map[string]string{"id": "song-1", "source": "qq"})
-	if err != nil {
-		t.Fatalf("marshal request: %v", err)
-	}
-
-	req := newAutoCacheHTTPRequest(body)
-	req.Header.Set("Origin", "https://evil.example")
-	rec := httptest.NewRecorder()
-	newLocalMusicTestRouter().ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("POST /local_music/auto_cache status = %d, want %d, body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
-	}
-}
-
-func TestAutoCacheEndpointRejectsOversizedRequest(t *testing.T) {
-	body := []byte(`{"id":"song-1","source":"qq","name":"` + strings.Repeat("x", autoCacheMaxRequestBytes) + `"}`)
-	rec := httptest.NewRecorder()
-	newLocalMusicTestRouter().ServeHTTP(rec, newAutoCacheHTTPRequest(body))
-
-	if rec.Code != http.StatusRequestEntityTooLarge {
-		t.Fatalf("POST /local_music/auto_cache status = %d, want %d, body=%s", rec.Code, http.StatusRequestEntityTooLarge, rec.Body.String())
-	}
-}
-
-func TestAutoCacheEndpointSkipsWhenDisabled(t *testing.T) {
-	withAutoCacheSettings(t, core.WebSettings{AutoCacheOnPlay: false})
-
-	originalSave := autoCacheSaveSong
-	t.Cleanup(func() {
-		waitForAutoCacheIdle(t)
-		autoCacheSaveSong = originalSave
-	})
-
-	called := make(chan struct{}, 1)
-	autoCacheSaveSong = func(_ *model.Song, _ string, _ bool, _ bool, _ string) (*core.DownloadedSong, error) {
-		called <- struct{}{}
-		return nil, nil
-	}
-
-	body, err := json.Marshal(map[string]string{"id": "song-1", "source": "qq"})
-	if err != nil {
-		t.Fatalf("marshal request: %v", err)
-	}
-
-	rec := httptest.NewRecorder()
-	newLocalMusicTestRouter().ServeHTTP(rec, newAutoCacheHTTPRequest(body))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("POST /local_music/auto_cache status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
-	}
-
-	var response map[string]string
-	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
-		t.Fatalf("decode auto-cache response: %v", err)
-	}
-	if response["status"] != "skipped" || response["reason"] != "auto cache disabled" {
-		t.Fatalf("auto-cache response = %#v, want skipped because auto cache is disabled", response)
-	}
-
-	select {
-	case <-called:
-		t.Fatal("auto-cache worker started while playback caching was disabled")
-	case <-time.After(100 * time.Millisecond):
-	}
-}
-
-func TestAutoCacheEndpointStartsDownloadAndIndexesSavedSong(t *testing.T) {
-	withAutoCacheSettings(t, core.WebSettings{AutoCacheOnPlay: true})
-
-	originalSave := autoCacheSaveSong
-	originalIndex := autoCacheIndexSavedSong
-	t.Cleanup(func() {
-		waitForAutoCacheIdle(t)
-		autoCacheSaveSong = originalSave
-		autoCacheIndexSavedSong = originalIndex
-	})
-
-	saved := make(chan *model.Song, 1)
-	indexed := make(chan struct{}, 1)
-	autoCacheSaveSong = func(song *model.Song, _ string, _ bool, _ bool, _ string) (*core.DownloadedSong, error) {
-		saved <- song
-		return &core.DownloadedSong{}, nil
-	}
-	autoCacheIndexSavedSong = func(_ *core.DownloadedSong, _ string) { indexed <- struct{}{} }
-
-	body, err := json.Marshal(map[string]interface{}{
-		"id":     "song-1",
-		"source": "qq",
-		"name":   "Song One",
-		"artist": "Artist One",
-		"extra":  map[string]string{"quality": "high"},
-	})
-	if err != nil {
-		t.Fatalf("marshal request: %v", err)
-	}
-
-	rec := httptest.NewRecorder()
-	newLocalMusicTestRouter().ServeHTTP(rec, newAutoCacheHTTPRequest(body))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("POST /local_music/auto_cache status = %d, want %d, body=%s", rec.Code, http.StatusOK, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), `"status":"started"`) {
-		t.Fatalf("auto-cache response = %s, want started", rec.Body.String())
-	}
-
-	select {
-	case song := <-saved:
-		if song.ID != "song-1" || song.Source != "qq" || song.Extra["quality"] != "high" {
-			t.Fatalf("saved song = %+v, want normalized request", song)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for auto-cache download")
-	}
-	select {
-	case <-indexed:
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for saved local file indexing")
-	}
-}
-
-func TestAutoCacheEndpointDeduplicatesInFlightRequests(t *testing.T) {
-	withAutoCacheSettings(t, core.WebSettings{AutoCacheOnPlay: true})
-
-	originalSave := autoCacheSaveSong
-	originalIndex := autoCacheIndexSavedSong
-	t.Cleanup(func() {
-		waitForAutoCacheIdle(t)
-		autoCacheSaveSong = originalSave
-		autoCacheIndexSavedSong = originalIndex
-	})
-
-	started := make(chan struct{}, 1)
-	release := make(chan struct{})
-	indexed := make(chan struct{}, 1)
-	autoCacheSaveSong = func(_ *model.Song, _ string, _ bool, _ bool, _ string) (*core.DownloadedSong, error) {
-		started <- struct{}{}
-		<-release
-		return &core.DownloadedSong{}, nil
-	}
-	autoCacheIndexSavedSong = func(_ *core.DownloadedSong, _ string) { indexed <- struct{}{} }
-
-	body, err := json.Marshal(map[string]string{"id": "song-1", "source": "qq"})
-	if err != nil {
-		t.Fatalf("marshal request: %v", err)
-	}
-	router := newLocalMusicTestRouter()
-
-	first := httptest.NewRecorder()
-	router.ServeHTTP(first, newAutoCacheHTTPRequest(body))
-	if !strings.Contains(first.Body.String(), `"status":"started"`) {
-		t.Fatalf("first auto-cache response = %s, want started", first.Body.String())
-	}
-	select {
-	case <-started:
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for first auto-cache worker")
-	}
-
-	second := httptest.NewRecorder()
-	router.ServeHTTP(second, newAutoCacheHTTPRequest(body))
-	if !strings.Contains(second.Body.String(), `"status":"in_progress"`) {
-		t.Fatalf("second auto-cache response = %s, want in_progress", second.Body.String())
-	}
-
-	close(release)
-	select {
-	case <-indexed:
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for first auto-cache worker to index its saved file")
-	}
-}
-
-func TestReserveAutoCacheLimitsConcurrentDownloads(t *testing.T) {
-	waitForAutoCacheIdle(t)
-	if status := reserveAutoCache("qq:first"); status != "started" {
-		t.Fatalf("first reservation = %q, want started", status)
-	}
-	defer releaseAutoCache("qq:first")
-	if status := reserveAutoCache("qq:second"); status != "started" {
-		t.Fatalf("second reservation = %q, want started", status)
-	}
-	defer releaseAutoCache("qq:second")
-	if status := reserveAutoCache("qq:third"); status != "busy" {
-		t.Fatalf("third reservation = %q, want busy", status)
-	}
-}
-
-func TestAutoCacheClientWaitsForConfirmedLocalMatch(t *testing.T) {
-	content, err := templateFS.ReadFile("templates/static/js/app.js")
-	if err != nil {
-		t.Fatalf("read app.js: %v", err)
-	}
-	js := string(content)
-	for _, want := range []string{
-		"autoCacheOnPlay: false",
-		"function isAutoCacheOnPlayEnabled()",
-		"return webSettings.autoCacheOnPlay === true;",
-		"if (!isAutoCacheOnPlayEnabled()) return;",
-		"!isAutoCacheOnPlayEnabled() ||",
-		"localMusicMatchCache[audio.custom_id]",
-		`"X-Requested-With": "XMLHttpRequest"`,
-		"scheduleAutoCacheMatch(audio, key)",
-		"custom_id:playback.id",
-		"original_id:song.id",
-		"getPlaybackCardID(newAudio)",
-	} {
-		if !strings.Contains(js, want) {
-			t.Fatalf("app.js missing %q", want)
-		}
-	}
-	if strings.Contains(js, "localMusicMatchCache[audio.custom_id] =") {
-		t.Fatal("auto-cache must not mark an online ID as a local file before matching")
-	}
-}
-
 func TestLocalMusicDuplicateEndpointPaginatesGroups(t *testing.T) {
 	initCollectionDBForTest(t)
 
@@ -1249,22 +993,6 @@ func TestLocalMusicSlowPathClearsIndexAfterDirectoryBecomesEmpty(t *testing.T) {
 	}
 }
 
-func TestAppJSInitializesCurrentPlayingIDBeforeBootstrap(t *testing.T) {
-	content, err := templateFS.ReadFile("templates/static/js/app.js")
-	if err != nil {
-		t.Fatalf("read app.js: %v", err)
-	}
-	js := string(content)
-	stateIndex := strings.Index(js, "let currentPlayingId = null;")
-	bootstrapIndex := strings.Index(js, `document.addEventListener("DOMContentLoaded"`)
-	if stateIndex < 0 || bootstrapIndex < 0 {
-		t.Fatalf("app.js missing playback state or DOM bootstrap")
-	}
-	if stateIndex > bootstrapIndex {
-		t.Fatal("currentPlayingId must initialize before the page bootstrap")
-	}
-}
-
 func TestLocalMusicEndpointPaginatesIndexedTracks(t *testing.T) {
 	initCollectionDBForTest(t)
 
@@ -1321,8 +1049,6 @@ func TestLocalMusicClientQueuesPageChangesAndRefreshesAfterDuplicateDeletion(t *
 		"persistWebSettingsCache();",
 		"await refreshLocalMusicPageAfterMutation();",
 		"await checkDuplicateSongs(activeDuplicatePage);",
-		`const btn = document.createElement("button");`,
-		`btn.className = "playmode-toggle-btn";`,
 	} {
 		if !strings.Contains(js, want) {
 			t.Fatalf("app.js missing %q", want)
@@ -1344,25 +1070,6 @@ func TestFloatingPaginationUsesLocalMusicPagePaginationBar(t *testing.T) {
 	}
 	if strings.Contains(js, `getElementById("local-music-pagination")`) {
 		t.Fatal("floating pagination should not reference the obsolete local music pagination ID")
-	}
-}
-
-func TestPlayModeButtonSitsAboveFixedPlayerCover(t *testing.T) {
-	content, err := templateFS.ReadFile("templates/static/css/style.css")
-	if err != nil {
-		t.Fatalf("read style.css: %v", err)
-	}
-	css := string(content)
-	for _, want := range []string{
-		".aplayer.aplayer-fixed .playmode-toggle-btn",
-		"top: -34px;",
-		"left: 17px;",
-		"width: 32px;",
-		"height: 28px;",
-	} {
-		if !strings.Contains(css, want) {
-			t.Fatalf("style.css missing %q", want)
-		}
 	}
 }
 

@@ -1018,17 +1018,15 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 	})
 
 	// serveDecodedAudio 输出已在服务端完整解密的音频；此类流无法按 Range 透传，只能整段返回。
-	serveDecodedAudio := func(c *gin.Context, tempSong *model.Song, finalData []byte, streamPlayback bool, settings core.WebSettings) {
+	serveDecodedAudio := func(c *gin.Context, tempSong *model.Song, finalData []byte, settings core.WebSettings) {
 		ext := core.DetectAudioExt(finalData)
 		filename := core.BuildDownloadFilename(tempSong, ext, settings.DownloadFilenameTemplate)
-		if !streamPlayback && core.WebDAVConfigured(settings) {
+		if core.WebDAVConfigured(settings) {
 			if err := core.UploadSongToWebDAV(settings, filename, finalData); err != nil {
 				c.Header("X-MusicDL-Warning", err.Error())
 			}
 		}
-		if !streamPlayback {
-			setDownloadHeader(c, filename)
-		}
+		setDownloadHeader(c, filename)
 		http.ServeContent(c.Writer, c.Request, filename, time.Now(), bytes.NewReader(finalData))
 	}
 
@@ -1039,10 +1037,9 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		artist := c.Query("artist")
 		album := strings.TrimSpace(c.Query("album"))
 		coverURL := strings.TrimSpace(c.Query("cover"))
-		streamPlayback := c.Query("stream") == "1"
 		noRangeRequest := strings.TrimSpace(c.GetHeader("Range")) == ""
-		embedMeta := !streamPlayback && c.Query("embed") == "1" && noRangeRequest
-		saveLocal := !streamPlayback && noRangeRequest && wantsSaveLocal(c)
+		embedMeta := c.Query("embed") == "1" && noRangeRequest
+		saveLocal := noRangeRequest && wantsSaveLocal(c)
 		if wantsSaveLocal(c) && !allowSaveLocalRequest(c) {
 			return
 		}
@@ -1168,7 +1165,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 					return
 				}
 			}
-			serveDecodedAudio(c, tempSong, finalData, streamPlayback, settings)
+			serveDecodedAudio(c, tempSong, finalData, settings)
 			return
 		}
 
@@ -1185,7 +1182,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 					c.String(502, "Upstream stream error")
 					return
 				}
-				serveDecodedAudio(c, tempSong, finalData, streamPlayback, settings)
+				serveDecodedAudio(c, tempSong, finalData, settings)
 				return
 			}
 			downloadUrl = info.URL
@@ -1216,12 +1213,8 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			}
 
 			filename := core.BuildDownloadFilename(tempSong, ext, settings.DownloadFilenameTemplate)
-			if streamPlayback {
-				c.Header("Content-Type", core.AudioMimeByExt(ext))
-			} else {
-				setDownloadHeader(c, filename)
-				c.Header("Content-Type", core.AudioMimeByExt(ext))
-			}
+			setDownloadHeader(c, filename)
+			c.Header("Content-Type", core.AudioMimeByExt(ext))
 			c.Header("Accept-Ranges", "bytes")
 			c.Header("Content-Length", strconv.FormatInt(rangeFetch.ContentLength, 10))
 			if rangeFetch.ContentRange != "" {
@@ -1249,7 +1242,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		defer resp.Body.Close()
 
 		var bufferedData []byte
-		if core.WebDAVConfigured(settings) && !streamPlayback {
+		if core.WebDAVConfigured(settings) {
 			bufferedData, err = io.ReadAll(resp.Body)
 			if err != nil {
 				c.String(502, "Upstream stream error")
@@ -1286,14 +1279,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 				c.Header("X-MusicDL-Warning", err.Error())
 			}
 		}
-		if streamPlayback {
-			contentType := strings.TrimSpace(strings.ToLower(resp.Header.Get("Content-Type")))
-			if contentType == "" || strings.HasPrefix(contentType, "application/octet-stream") {
-				c.Header("Content-Type", core.AudioMimeByExt(ext))
-			}
-		} else {
-			setDownloadHeader(c, filename)
-		}
+		setDownloadHeader(c, filename)
 		c.Status(resp.StatusCode)
 		if bufferedData != nil {
 			_, _ = c.Writer.Write(bufferedData)

@@ -2,8 +2,6 @@ package core
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,16 +22,11 @@ const (
 	DefaultCLIPageSize              = 20
 	DefaultWebConcurrency           = 3
 	DefaultDownloadTipDuration      = 8
-	DefaultShortcutPlayPause        = "Space"
-	DefaultLyricFontFamily          = "system"
-	DefaultLyricFontSize            = 24
 	DefaultUpdateRepoURL            = "https://github.com/guohuiyuan/go-music-dl"
 	DefaultGithubProxyURL           = "https://edgeone.gh-proxy.com"
 	webSettingsKey                  = "web_settings"
 	webAuthSettingsKey              = "web_auth_settings"
 )
-
-var ErrInvalidWebSettings = errors.New("invalid web settings")
 
 type configKV struct {
 	Key       string    `gorm:"primaryKey;size:128"`
@@ -59,13 +52,11 @@ type WebSettings struct {
 	WebDAVUsername           string `json:"webdavUsername"`
 	WebDAVPassword           string `json:"webdavPassword"`
 	WebDAVDir                string `json:"webdavDir"`
-	DisableFloatingLyrics    bool   `json:"disableFloatingLyrics"`
 	WebPageSize              int    `json:"webPageSize"`
 	CliPageSize              int    `json:"cliPageSize"`
 	DownloadConcurrency      int    `json:"downloadConcurrency"`
 	AutoCheckUpdate          bool   `json:"autoCheckUpdate"`
 	AutoSwitchInvalidSources bool   `json:"autoSwitchInvalidSources"`
-	AutoCacheOnPlay          bool   `json:"autoCacheOnPlay"`
 	FilterVersionKeywords    bool   `json:"filterVersionKeywords"`
 	VersionFilterKeywords    string `json:"versionFilterKeywords"`
 	FilterShortTracks        bool   `json:"filterShortTracks"`
@@ -76,17 +67,6 @@ type WebSettings struct {
 	SodaSignerURL            string `json:"sodaSignerUrl"`
 	SodaSignerToken          string `json:"sodaSignerToken"`
 	SodaClientDir            string `json:"sodaClientDir"`
-	VgChangeCover            bool   `json:"vgChangeCover"`
-	VgChangeAudio            bool   `json:"vgChangeAudio"`
-	VgChangeLyric            bool   `json:"vgChangeLyric"`
-	VgExportVideo            bool   `json:"vgExportVideo"`
-	ShortcutPlayPause        string `json:"shortcutPlayPause"`
-	ShortcutPrevious         string `json:"shortcutPrevious"`
-	ShortcutNext             string `json:"shortcutNext"`
-	ShortcutSeekBack         string `json:"shortcutSeekBack"`
-	ShortcutSeekForward      string `json:"shortcutSeekForward"`
-	LyricFontFamily          string `json:"lyricFontFamily"`
-	LyricFontSize            int    `json:"lyricFontSize"`
 }
 
 type WebAuthSettings struct {
@@ -214,14 +194,12 @@ func defaultWebSettings() WebSettings {
 		DownloadLyricsToLocal:    false,
 		DownloadDir:              DefaultWebDownloadDir,
 		DownloadFilenameTemplate: DefaultDownloadFilenameTemplate,
-		DisableFloatingLyrics:    false,
 		WebPageSize:              DefaultWebPageSize,
 		CliPageSize:              DefaultCLIPageSize,
 		DownloadConcurrency:      DefaultWebConcurrency,
 		DownloadTipDuration:      DefaultDownloadTipDuration,
 		AutoCheckUpdate:          true,
 		AutoSwitchInvalidSources: true,
-		AutoCacheOnPlay:          false,
 		FilterVersionKeywords:    false,
 		VersionFilterKeywords:    "Live, Remix, Demo",
 		FilterShortTracks:        false,
@@ -229,9 +207,6 @@ func defaultWebSettings() WebSettings {
 		UpdateRepoURL:            DefaultUpdateRepoURL,
 		GithubProxyEnabled:       false,
 		GithubProxyURL:           DefaultGithubProxyURL,
-		ShortcutPlayPause:        DefaultShortcutPlayPause,
-		LyricFontFamily:          DefaultLyricFontFamily,
-		LyricFontSize:            DefaultLyricFontSize,
 		// 默认不配远程签名服务：soda 包会优先用本机官方客户端的 bdms.node 签名。
 		SodaSignerURL:   "",
 		SodaSignerToken: "",
@@ -298,178 +273,8 @@ func normalizeWebSettings(settings WebSettings) WebSettings {
 	settings.SodaSignerURL = strings.TrimSpace(settings.SodaSignerURL)
 	settings.SodaSignerToken = strings.TrimSpace(settings.SodaSignerToken)
 	settings.SodaClientDir = normalizeSodaClientDir(settings.SodaClientDir)
-	settings.ShortcutPlayPause = normalizeShortcutBinding(settings.ShortcutPlayPause)
-	settings.ShortcutPrevious = normalizeShortcutBinding(settings.ShortcutPrevious)
-	settings.ShortcutNext = normalizeShortcutBinding(settings.ShortcutNext)
-	settings.ShortcutSeekBack = normalizeShortcutBinding(settings.ShortcutSeekBack)
-	settings.ShortcutSeekForward = normalizeShortcutBinding(settings.ShortcutSeekForward)
-	settings.LyricFontFamily = normalizeLyricFontFamily(settings.LyricFontFamily)
-	if settings.LyricFontSize <= 0 {
-		settings.LyricFontSize = DefaultLyricFontSize
-	}
-	if settings.LyricFontSize < 14 {
-		settings.LyricFontSize = 14
-	}
-	if settings.LyricFontSize > 48 {
-		settings.LyricFontSize = 48
-	}
 	settings.DownloadDir = normalizeWebDownloadDir(settings.DownloadDir)
 	return settings
-}
-
-func normalizeLyricFontFamily(value string) string {
-	value = strings.ToLower(strings.TrimSpace(value))
-	switch value {
-	case "sans", "serif", "yahei", "pingfang", "source-han", "lxgw":
-		return value
-	default:
-		return DefaultLyricFontFamily
-	}
-}
-
-func normalizeShortcutBinding(binding string) string {
-	binding = strings.TrimSpace(binding)
-	if binding == "" {
-		return ""
-	}
-
-	modifiers := map[string]bool{}
-	key := ""
-	for _, part := range strings.Split(binding, "+") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			return ""
-		}
-
-		switch strings.ToLower(part) {
-		case "ctrl", "control":
-			modifiers["Ctrl"] = true
-		case "alt", "option":
-			modifiers["Alt"] = true
-		case "shift":
-			modifiers["Shift"] = true
-		case "meta", "cmd", "command", "win", "super":
-			modifiers["Meta"] = true
-		default:
-			if key != "" {
-				return ""
-			}
-			key = normalizeShortcutKey(part)
-			if key == "" {
-				return ""
-			}
-		}
-	}
-	if key == "" {
-		return ""
-	}
-
-	parts := make([]string, 0, 5)
-	for _, modifier := range []string{"Ctrl", "Alt", "Shift", "Meta"} {
-		if modifiers[modifier] {
-			parts = append(parts, modifier)
-		}
-	}
-	parts = append(parts, key)
-	return strings.Join(parts, "+")
-}
-
-func normalizeShortcutKey(key string) string {
-	key = strings.TrimSpace(key)
-	if key == "" {
-		return ""
-	}
-
-	switch strings.ToLower(key) {
-	case "space", "spacebar":
-		return "Space"
-	case "esc", "escape":
-		return "Escape"
-	case "enter", "return":
-		return "Enter"
-	case "tab":
-		return "Tab"
-	case "backspace":
-		return "Backspace"
-	case "delete", "del":
-		return "Delete"
-	case "insert", "ins":
-		return "Insert"
-	case "home":
-		return "Home"
-	case "end":
-		return "End"
-	case "pageup", "pgup":
-		return "PageUp"
-	case "pagedown", "pgdn":
-		return "PageDown"
-	case "arrowleft", "left":
-		return "ArrowLeft"
-	case "arrowright", "right":
-		return "ArrowRight"
-	case "arrowup", "up":
-		return "ArrowUp"
-	case "arrowdown", "down":
-		return "ArrowDown"
-	case "mediaplaypause":
-		return "MediaPlayPause"
-	case "mediatracknext":
-		return "MediaTrackNext"
-	case "mediatrackprevious":
-		return "MediaTrackPrevious"
-	case "mediastop":
-		return "MediaStop"
-	}
-
-	if len(key) == 4 && strings.EqualFold(key[:3], "key") {
-		r := key[3]
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
-			return strings.ToUpper(key[3:])
-		}
-	}
-	if len(key) == 6 && strings.EqualFold(key[:5], "digit") {
-		r := key[5]
-		if r >= '0' && r <= '9' {
-			return key[5:]
-		}
-	}
-	if len(key) == 1 {
-		return strings.ToUpper(key)
-	}
-	if len(key) <= 32 {
-		return key
-	}
-	return ""
-}
-
-func validateWebSettings(settings WebSettings) error {
-	shortcuts := []struct {
-		name  string
-		value string
-	}{
-		{"play/pause", settings.ShortcutPlayPause},
-		{"previous track", settings.ShortcutPrevious},
-		{"next track", settings.ShortcutNext},
-		{"seek back", settings.ShortcutSeekBack},
-		{"seek forward", settings.ShortcutSeekForward},
-	}
-
-	seen := map[string]string{}
-	for _, shortcut := range shortcuts {
-		if shortcut.value == "" {
-			continue
-		}
-		parts := strings.Split(shortcut.value, "+")
-		key := parts[len(parts)-1]
-		if key == "PageUp" || key == "PageDown" {
-			return fmt.Errorf("%w: %s is reserved for list pagination", ErrInvalidWebSettings, key)
-		}
-		if previous, exists := seen[shortcut.value]; exists {
-			return fmt.Errorf("%w: shortcut %q is used by both %s and %s", ErrInvalidWebSettings, shortcut.value, previous, shortcut.name)
-		}
-		seen[shortcut.value] = shortcut.name
-	}
-	return nil
 }
 
 func normalizeWebAuthSettings(settings WebAuthSettings) WebAuthSettings {
@@ -536,9 +341,6 @@ func SaveWebSettings(settings WebSettings) error {
 		settings.SodaSignerToken = GetWebSettings().SodaSignerToken
 	}
 	settings = normalizeWebSettings(settings)
-	if err := validateWebSettings(settings); err != nil {
-		return err
-	}
 	data, err := json.Marshal(settings)
 	if err != nil {
 		return err

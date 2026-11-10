@@ -95,9 +95,6 @@ func TestRemotePlaylistDetailKeepsGlobalRightToolbar(t *testing.T) {
 	if !strings.Contains(body, `onclick="openSystemConfig()"`) {
 		t.Fatalf("remote playlist detail should retain system settings access: %s", body)
 	}
-	if !strings.Contains(body, `onclick="openPlaybackHistoryModal()"`) {
-		t.Fatalf("remote playlist detail should retain playback history access: %s", body)
-	}
 	if !strings.Contains(body, `class="detail-back-row"`) ||
 		!strings.Contains(body, `onclick="navigateBack()"`) {
 		t.Fatalf("remote playlist detail should render a back button: %s", body)
@@ -237,11 +234,6 @@ func TestAppJSIncludesAjaxNavigationEntryPoints(t *testing.T) {
 	}
 	for _, want := range []string{
 		"function toggleSongListTools(event)",
-		"function openPlaybackHistoryModal()",
-		"function rememberPlaybackHistory(audio)",
-		"rememberPlaybackHistory(audio);",
-		"const PLAYBACK_HISTORY_STORAGE_KEY = \"musicdl:playback-history\";",
-		"const PLAYBACK_HISTORY_PAGE_SIZE = 10;",
 		"const DOWNLOAD_RECORDS_PAGE_SIZE = 20;",
 		"const DUPLICATE_GROUP_PAGE_SIZE = 10;",
 		"function renderUtilityModalPagination(page, totalPages, onPageChange)",
@@ -267,11 +259,7 @@ func TestUtilityModalsShareCompactStructure(t *testing.T) {
 	for _, want := range []string{
 		`id="downloadRecordsModal" class="modal-overlay utility-modal-overlay"`,
 		`class="modal utility-modal download-records-modal"`,
-		`id="playbackHistoryModal" class="modal-overlay utility-modal-overlay"`,
-		`class="modal utility-modal playback-history-modal"`,
-		`id="playback-history-list" class="utility-modal-list playback-history-list"`,
 		`id="download-records-pagination" class="utility-modal-pagination"`,
-		`id="playback-history-pagination" class="utility-modal-pagination"`,
 	} {
 		if !strings.Contains(modals, want) {
 			t.Fatalf("modals.html missing %q", want)
@@ -288,27 +276,6 @@ func TestAjaxNavigationRefreshesRightToolbarMarkup(t *testing.T) {
 	js := string(content)
 	if !strings.Contains(js, "currentToolbar.replaceWith(nextToolbar.cloneNode(true));") {
 		t.Fatal("AJAX navigation must replace the existing right toolbar so conditional pagination markup stays in sync")
-	}
-}
-
-func TestAppJSPlaybackURLIgnoresEmbedDownloadSetting(t *testing.T) {
-	content, err := templateFS.ReadFile("templates/static/js/app.js")
-	if err != nil {
-		t.Fatalf("ReadFile(app.js): %v", err)
-	}
-
-	js := string(content)
-	if !strings.Contains(js, "function buildStreamURL(id, source, name, artist, album, cover, extra)") {
-		t.Fatal("app.js missing buildStreamURL")
-	}
-	if !strings.Contains(js, "stream: true") {
-		t.Fatal("buildStreamURL should force stream=1")
-	}
-	if strings.Contains(js, "function buildStreamURL(id, source, name, artist, album, cover, extra) {\n    return buildDownloadRequestURL(id, source, name, artist, album, cover, extra, {\n        embed: webSettings.embedDownload") {
-		t.Fatal("buildStreamURL must not follow embedDownload; playback should always use plain streaming")
-	}
-	if !strings.Contains(js, `preload: "metadata"`) {
-		t.Fatal("APlayer should preload metadata instead of full audio")
 	}
 }
 
@@ -438,8 +405,6 @@ func TestSettingsModalIncludesDownloadDirPresets(t *testing.T) {
 		`id="setting-download-dir-preset"`,
 		`id="setting-download-lyrics-to-local"`,
 		`id="setting-download-filename-template"`,
-		`id="setting-auto-cache-on-play"`,
-		`id="setting-floating-lyrics"`,
 		`id="setting-auto-switch-invalid-sources"`,
 		`id="setting-soda-client-dir"`,
 		`onclick="openAboutAppModal()"`,
@@ -453,8 +418,6 @@ func TestSettingsModalIncludesDownloadDirPresets(t *testing.T) {
 		`{ext}`,
 		`PC 默认：data/downloads`,
 		`PC 示例：D:/Music/Downloads`,
-		`Android 默认：/sdcard/Music`,
-		`Android 兼容：/storage/emulated/0/Music`,
 		`自定义目录...`,
 	} {
 		if !strings.Contains(html, want) {

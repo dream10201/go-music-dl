@@ -75,8 +75,8 @@ func isLoopbackOpenDownloadRequest(request *http.Request) bool {
 		return false
 	}
 	// A local reverse proxy can make the socket appear loopback even when the
-	// originating browser is remote. The desktop application never sends these
-	// headers, so reject any forwarded request instead of trusting proxy config.
+	// originating browser is remote, so reject any forwarded request instead of
+	// trusting proxy config.
 	for _, header := range []string{"Forwarded", "X-Forwarded-For", "X-Real-IP"} {
 		if strings.TrimSpace(request.Header.Get(header)) != "" {
 			return false

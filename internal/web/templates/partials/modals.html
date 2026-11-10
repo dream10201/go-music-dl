@@ -4,7 +4,7 @@
         <div class="modal-header">
             <div>
                 <h3>系统设置</h3>
-                <p class="settings-modal-subtitle">分类管理播放体验、下载同步与平台 Cookie</p>
+                <p class="settings-modal-subtitle">分类管理常规设置、下载同步与平台 Cookie</p>
             </div>
             <div class="modal-close" onclick="document.getElementById('cookieModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
         </div>
@@ -22,91 +22,6 @@
             </div>
 
             <section id="settings-panel-general" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-general" data-settings-panel="general">
-                <div class="cookie-item setting-item">
-                    <label class="setting-toggle" for="setting-floating-lyrics">
-                        <input type="checkbox" id="setting-floating-lyrics">
-                        <span class="setting-switch" aria-hidden="true"></span>
-                        <span class="setting-toggle-text">播放音乐时显示悬浮歌词</span>
-                    </label>
-                    <p class="setting-hint">关闭后，播放音乐时不显示底部悬浮歌词。</p>
-                </div>
-                <div class="cookie-item setting-item lyric-appearance-settings">
-                    <div class="settings-section-heading">
-                        <span class="settings-section-icon"><i class="fa-solid fa-font"></i></span>
-                        <span>
-                            <strong>歌词字体</strong>
-                            <small>同时应用到播放器歌词和底部悬浮歌词</small>
-                        </span>
-                    </div>
-                    <div class="lyric-appearance-controls">
-                        <label for="setting-lyric-font-family">
-                            字体
-                            <select id="setting-lyric-font-family">
-                                <option value="system">系统默认</option>
-                                <option value="sans">现代黑体</option>
-                                <option value="serif">宋体 / 衬线</option>
-                                <option value="yahei">微软雅黑</option>
-                                <option value="pingfang">苹方</option>
-                                <option value="source-han">思源黑体 / Noto Sans CJK</option>
-                                <option value="lxgw">霞鹜文楷 / 楷体</option>
-                            </select>
-                        </label>
-                        <label for="setting-lyric-font-size">
-                            字号 <output id="setting-lyric-font-size-value" for="setting-lyric-font-size">24 px</output>
-                            <input type="range" id="setting-lyric-font-size" min="14" max="48" step="1" value="24">
-                        </label>
-                    </div>
-                    <div id="setting-lyric-font-preview" class="lyric-font-preview" aria-live="polite">
-                        示例歌词 · 让每一句都清晰可见
-                    </div>
-                </div>
-                <div class="cookie-item setting-item shortcut-settings">
-                    <div class="settings-section-heading">
-                        <span class="settings-section-icon"><i class="fa-solid fa-keyboard"></i></span>
-                        <span>
-                            <strong>应用内全局快捷键</strong>
-                            <small>焦点不在输入框且未打开弹窗时生效</small>
-                        </span>
-                    </div>
-                    <div class="shortcut-settings-list">
-                        <div class="shortcut-setting-row">
-                            <label for="setting-shortcut-play-pause">播放 / 暂停</label>
-                            <div class="shortcut-capture-control">
-                                <input type="text" id="setting-shortcut-play-pause" data-shortcut-input readonly autocomplete="off" placeholder="未设置">
-                                <button type="button" class="shortcut-clear-btn" data-shortcut-clear="setting-shortcut-play-pause" title="清除播放 / 暂停快捷键"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                        </div>
-                        <div class="shortcut-setting-row">
-                            <label for="setting-shortcut-previous">上一首</label>
-                            <div class="shortcut-capture-control">
-                                <input type="text" id="setting-shortcut-previous" data-shortcut-input readonly autocomplete="off" placeholder="未设置">
-                                <button type="button" class="shortcut-clear-btn" data-shortcut-clear="setting-shortcut-previous" title="清除上一首快捷键"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                        </div>
-                        <div class="shortcut-setting-row">
-                            <label for="setting-shortcut-next">下一首</label>
-                            <div class="shortcut-capture-control">
-                                <input type="text" id="setting-shortcut-next" data-shortcut-input readonly autocomplete="off" placeholder="未设置">
-                                <button type="button" class="shortcut-clear-btn" data-shortcut-clear="setting-shortcut-next" title="清除下一首快捷键"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                        </div>
-                        <div class="shortcut-setting-row">
-                            <label for="setting-shortcut-seek-back">后退 10 秒</label>
-                            <div class="shortcut-capture-control">
-                                <input type="text" id="setting-shortcut-seek-back" data-shortcut-input readonly autocomplete="off" placeholder="未设置">
-                                <button type="button" class="shortcut-clear-btn" data-shortcut-clear="setting-shortcut-seek-back" title="清除后退快捷键"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                        </div>
-                        <div class="shortcut-setting-row">
-                            <label for="setting-shortcut-seek-forward">前进 10 秒</label>
-                            <div class="shortcut-capture-control">
-                                <input type="text" id="setting-shortcut-seek-forward" data-shortcut-input readonly autocomplete="off" placeholder="未设置">
-                                <button type="button" class="shortcut-clear-btn" data-shortcut-clear="setting-shortcut-seek-forward" title="清除前进快捷键"><i class="fa-solid fa-xmark"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                    <p id="setting-shortcut-status" class="setting-hint shortcut-settings-hint" aria-live="polite">点击输入框后按下组合键；Backspace / Delete 清空，Esc 取消。PageUp / PageDown 保留给列表翻页。</p>
-                </div>
                 <div class="cookie-item">
                     <label for="setting-web-page-size">Web 每页条数</label>
                     <select id="setting-web-page-size" aria-label="Web 每页条数">
@@ -141,38 +56,6 @@
                     </span>
                     <i class="fa-solid fa-chevron-right setting-link-chevron" aria-hidden="true"></i>
                 </button>
-                <div class="cookie-item setting-item">
-                    <label class="setting-toggle" for="setting-vg-change-cover">
-                        <input type="checkbox" id="setting-vg-change-cover">
-                        <span class="setting-switch" aria-hidden="true"></span>
-                        <span class="setting-toggle-text">显示“更换封面/背景”按钮</span>
-                    </label>
-                    <p class="setting-hint">控制视频生成弹窗中的本地封面/背景替换入口，默认隐藏。</p>
-                </div>
-                <div class="cookie-item setting-item">
-                    <label class="setting-toggle" for="setting-vg-change-audio">
-                        <input type="checkbox" id="setting-vg-change-audio">
-                        <span class="setting-switch" aria-hidden="true"></span>
-                        <span class="setting-toggle-text">显示“更换音频”按钮</span>
-                    </label>
-                    <p class="setting-hint">控制视频生成弹窗中的本地音频替换入口，默认隐藏。</p>
-                </div>
-                <div class="cookie-item setting-item">
-                    <label class="setting-toggle" for="setting-vg-change-lyric">
-                        <input type="checkbox" id="setting-vg-change-lyric">
-                        <span class="setting-switch" aria-hidden="true"></span>
-                        <span class="setting-toggle-text">显示“更换歌词”按钮</span>
-                    </label>
-                    <p class="setting-hint">控制视频生成弹窗中的本地歌词替换入口，默认隐藏。</p>
-                </div>
-                <div class="cookie-item setting-item">
-                    <label class="setting-toggle" for="setting-vg-export-video">
-                        <input type="checkbox" id="setting-vg-export-video">
-                        <span class="setting-switch" aria-hidden="true"></span>
-                        <span class="setting-toggle-text">显示“导出视频”按钮</span>
-                    </label>
-                    <p class="setting-hint">控制视频生成弹窗中的导出视频入口，默认隐藏。</p>
-                </div>
             </section>
 
             <section id="settings-panel-download" class="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-download" data-settings-panel="download" hidden>
@@ -182,7 +65,7 @@
                         <span class="setting-switch" aria-hidden="true"></span>
                         <span class="setting-toggle-text">下载时内嵌元数据（封面、歌词）</span>
                     </label>
-                    <p class="setting-hint">影响“保存到本地目录”和“浏览器下载”两种方式；播放始终使用流式下载，不内嵌元数据。</p>
+                    <p class="setting-hint">影响“保存到本地目录”和“浏览器下载”两种方式。</p>
                 </div>
                 <div class="cookie-item setting-item">
                     <label class="setting-toggle" for="setting-download-lyrics-to-local">
@@ -200,16 +83,10 @@
                             <option value="downloads">PC 简洁：downloads</option>
                             <option value="D:/Music/Downloads">PC 示例：D:/Music/Downloads</option>
                             <option value="/app/data">Docker 默认：/app/data</option>
-                            <option value="/sdcard/Music">Android 默认：/sdcard/Music</option>
-                            <option value="/storage/emulated/0/Music">Android 兼容：/storage/emulated/0/Music</option>
-                            <option value="/sdcard/Download">Android 下载：/sdcard/Download</option>
                             <option value="__custom__">自定义目录...</option>
                         </select>
                         <div style="display:flex;gap:6px;align-items:center;">
-                            <input type="text" id="setting-download-dir" aria-describedby="setting-download-dir-hint" placeholder="例如: data/downloads、D:/Music/Downloads 或 /sdcard/Music" style="flex:1;">
-                            <button type="button" class="btn-pill" onclick="pickDownloadFolder()" title="选择文件夹" style="white-space:nowrap;font-size:12px;padding:4px 10px;">
-                                <i class="fa-solid fa-folder-open"></i>
-                            </button>
+                            <input type="text" id="setting-download-dir" aria-describedby="setting-download-dir-hint" placeholder="例如: data/downloads 或 D:/Music/Downloads" style="flex:1;">
                             <button type="button" class="btn-pill" onclick="openDownloadDirectory()" title="打开已保存的下载目录" style="white-space:nowrap;font-size:12px;padding:4px 10px;">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i>
                             </button>
@@ -233,14 +110,6 @@
                         <option value="30">30 秒</option>
                     </select>
                     <p class="setting-hint" style="margin-left: 0;">下载完成、失败和批量下载提示会自动关闭，仍可随时手动关闭。</p>
-                </div>
-                <div class="cookie-item setting-item">
-                    <label class="setting-toggle" for="setting-auto-cache-on-play">
-                        <input type="checkbox" id="setting-auto-cache-on-play">
-                        <span class="setting-switch" aria-hidden="true"></span>
-                        <span class="setting-toggle-text">播放时自动缓存本地音乐</span>
-                    </label>
-                    <p class="setting-hint">开启后，在线歌曲开始播放时会后台保存到本地下载目录；默认关闭，避免持续占用储存空间。</p>
                 </div>
                 <div class="cookie-item setting-item search-filter-settings">
                     <div class="settings-section-heading">
@@ -391,64 +260,6 @@
                 <button type="button" id="settings-save-button" class="btn-save" onclick="saveCookies()">保存设置</button>
             </div>
         </div>
-    </div>
-</div>
-
-<div id="scheduledPlaybackModal" class="modal-overlay scheduled-playback-overlay">
-    <div class="modal scheduled-playback-modal" role="dialog" aria-modal="true" aria-labelledby="scheduled-playback-title" aria-describedby="scheduled-playback-description">
-        <div class="modal-header">
-            <div>
-                <h3 id="scheduled-playback-title"><i class="fa-solid fa-stopwatch" aria-hidden="true"></i> 定时停止</h3>
-                <p id="scheduled-playback-description" class="scheduled-playback-subtitle">到指定时间自动暂停播放，保留当前播放清单</p>
-            </div>
-            <button type="button" class="modal-close" onclick="closeScheduledPlaybackModal()" aria-label="关闭定时停止设置">
-                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-            </button>
-        </div>
-        <form id="scheduled-playback-form" class="modal-body scheduled-playback-body" onsubmit="return saveScheduledPlayback(event)">
-            <div class="scheduled-playback-status" aria-live="polite">
-                <span class="scheduled-playback-status-icon"><i class="fa-solid fa-stopwatch" aria-hidden="true"></i></span>
-                <span>
-                    <strong id="scheduled-playback-status-title">尚未设置定时停止</strong>
-                    <small id="scheduled-playback-status-copy">选择时间后，播放器会在到点时自动暂停，播放清单会保留。</small>
-                </span>
-            </div>
-
-            <div class="scheduled-playback-fields">
-                <label for="scheduled-playback-time">
-                    停止时间
-                    <input type="time" id="scheduled-playback-time" step="60" required>
-                </label>
-            </div>
-
-            <div class="scheduled-playback-presets" aria-label="快速设置停止时间">
-                <button type="button" class="btn-pill" data-scheduled-playback-minutes="5">5 分钟后</button>
-                <button type="button" class="btn-pill" data-scheduled-playback-minutes="15">15 分钟后</button>
-                <button type="button" class="btn-pill" data-scheduled-playback-minutes="30">30 分钟后</button>
-                <button type="button" class="btn-pill" data-scheduled-playback-minutes="60">1 小时后</button>
-            </div>
-
-            <div id="scheduled-playback-active" class="scheduled-playback-active" hidden>
-                <span>
-                    <strong id="scheduled-playback-active-target"></strong>
-                    <small id="scheduled-playback-active-countdown"></small>
-                </span>
-                <button type="button" class="btn-pill btn-pill-danger" onclick="cancelScheduledPlayback()">
-                    <i class="fa-solid fa-ban" aria-hidden="true"></i> 取消定时
-                </button>
-            </div>
-
-            <p class="setting-hint scheduled-playback-hint">
-                定时任务保存在当前设备，刷新页面后会恢复。网页或桌面端需要保持运行；若所选时间已经过去，将在明天同一时间暂停。
-            </p>
-
-            <div class="scheduled-playback-actions">
-                <button type="button" class="btn-pill" onclick="closeScheduledPlaybackModal()">关闭</button>
-                <button type="submit" class="btn-pill btn-pill-primary">
-                    <i class="fa-solid fa-check" aria-hidden="true"></i> 设置停止
-                </button>
-            </div>
-        </form>
     </div>
 </div>
 
@@ -616,31 +427,6 @@
                 <div id="download-dedup-list" class="utility-modal-list download-records-list"></div>
                 <nav id="download-dedup-pagination" class="utility-modal-pagination" aria-label="已下载记录分页"></nav>
             </section>
-        </div>
-    </div>
-</div>
-
-<!-- 播放历史弹窗 -->
-<div id="playbackHistoryModal" class="modal-overlay utility-modal-overlay">
-    <div class="modal utility-modal playback-history-modal">
-        <div class="modal-header">
-            <div>
-                <h3><i class="fa-solid fa-clock"></i> 播放历史</h3>
-                <p class="utility-modal-subtitle">此设备最近播放过的歌曲</p>
-            </div>
-            <div class="modal-close" onclick="closePlaybackHistoryModal()"><i class="fa-solid fa-xmark"></i></div>
-        </div>
-        <div class="modal-body">
-            <div class="utility-modal-toolbar">
-                <span id="playback-history-count" class="utility-modal-count">暂无播放记录</span>
-                <div class="utility-modal-actions">
-                    <button type="button" class="btn-pill btn-pill-danger" onclick="clearPlaybackHistory()">
-                        <i class="fa-solid fa-trash-can"></i> 清空历史
-                    </button>
-                </div>
-            </div>
-            <div id="playback-history-list" class="utility-modal-list playback-history-list"></div>
-            <nav id="playback-history-pagination" class="utility-modal-pagination" aria-label="播放历史分页"></nav>
         </div>
     </div>
 </div>

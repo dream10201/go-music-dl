@@ -8,9 +8,6 @@
     <link rel="icon" href="{{.Root}}/icon.png" type="image/png">
     
     <link rel="stylesheet" href="{{.Root}}/style.css">
-    <link rel="stylesheet" href="{{.Root}}/videogen.css">
-    
-    <link rel="stylesheet" href="{{.Root}}/vendor/aplayer/APlayer.min.css">
     <link rel="stylesheet" href="{{.Root}}/vendor/fontawesome/css/all.min.css">
     <link rel="stylesheet" href="{{.Root}}/vendor/sakana/sakana.min.css"/>
 </head>
@@ -20,10 +17,6 @@
 <div class="right-toolbar">
     <!-- 功能按钮组 -->
     <div class="rt-btn" onclick="openSystemConfig()" title="系统配置"><i class="fa-solid fa-gear"></i></div>
-    <button type="button" id="scheduled-playback-toolbar-button" class="rt-btn rt-btn-scheduled-playback" onclick="openScheduledPlaybackModal()" title="定时停止" aria-label="定时停止" aria-haspopup="dialog" aria-controls="scheduledPlaybackModal">
-        <i class="fa-solid fa-stopwatch" aria-hidden="true"></i>
-        <span id="scheduled-playback-toolbar-badge" class="rt-scheduled-badge" aria-hidden="true" hidden></span>
-    </button>
     <form id="auth-float-form" class="rt-form" action="{{.Root}}/logout" method="post" title="登录">
         <button id="auth-float-button" type="submit"><i id="auth-float-icon" class="fa-solid fa-right-to-bracket"></i></button>
     </form>
@@ -35,7 +28,6 @@
         <i class="fa-solid fa-clock-rotate-left"></i>
         <span class="rt-download-records-dot" aria-hidden="true"></span><span id="download-queue-badge" class="queue-badge" hidden></span>
     </button>
-    <div class="rt-btn" onclick="openPlaybackHistoryModal()" title="播放历史"><i class="fa-solid fa-clock"></i></div>
 
     {{ if or (gt .TotalPages 1) (eq .SearchType "local_music") }}
     <div class="rt-separator"></div>
@@ -50,7 +42,6 @@
 
     <!-- 滚动按钮组 -->
     <div class="rt-btn" onclick="scrollToTop()" title="回到顶部"><i class="fa-solid fa-arrow-up"></i></div>
-    <div id="locate-current-track" class="rt-btn" onclick="scrollToCurrentPlaying()" title="定位当前播放歌曲" aria-label="定位当前播放歌曲" hidden><i class="fa-solid fa-headphones"></i></div>
 </div>
 
 <div class="container">
@@ -69,9 +60,6 @@
 
 {{template "modals" .}}
 
-<div id="aplayer"></div>
-<script src="{{.Root}}/vendor/aplayer/APlayer.min.js"></script>
-
 <script>
     window.API_ROOT = "{{.Root}}";
     window.sakanaInstance = null;
@@ -84,8 +72,6 @@
 </script>
 
 <script src="{{.Root}}/app.js"></script>
-{{template "videogen_modal" .}}
-<script src="{{.Root}}/videogen.js"></script>
 
 <div id="sakana-container" class="sakana-container">
     <div id="sakana-widget"></div>

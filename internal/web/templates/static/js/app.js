@@ -20,38 +20,18 @@ const DOWNLOAD_DIR_PRESET_VALUES = [
   "downloads",
   "D:/Music/Downloads",
   "/app/data",
-  "/sdcard/Music",
-  "/storage/emulated/0/Music",
-  "/sdcard/Download",
 ];
 const DOWNLOAD_DIR_PRESETS = new Set(DOWNLOAD_DIR_PRESET_VALUES);
 const DEFAULT_UPDATE_REPO_URL = "https://github.com/guohuiyuan/go-music-dl";
 const DEFAULT_GITHUB_PROXY_URL = "https://edgeone.gh-proxy.com";
 const DEFAULT_DOWNLOAD_TIP_DURATION = 8;
 const OPEN_CONFIG_QUERY = "open_config";
-const SCHEDULED_PLAYBACK_STORAGE_KEY = "musicdl:scheduledStop";
-const SCHEDULED_PLAYBACK_LEGACY_STORAGE_KEY = "musicdl:scheduledPlayback";
-const SCHEDULED_PLAYBACK_WAKE_INTERVAL_MS = 30000;
 const GITHUB_PROXY_PRESETS = [
   "https://edgeone.gh-proxy.com",
   "https://hk.gh-proxy.com/",
   "https://gh-proxy.com/",
   "https://gh.llkk.cc",
 ];
-const DEFAULT_SHORTCUT_PLAY_PAUSE = "Space";
-const DEFAULT_LYRIC_FONT_FAMILY = "system";
-const DEFAULT_LYRIC_FONT_SIZE = 24;
-const LYRIC_FONT_FAMILIES = Object.freeze({
-  system:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif',
-  sans: '"Segoe UI", "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif',
-  serif: '"Songti SC", SimSun, "Noto Serif CJK SC", serif',
-  yahei: '"Microsoft YaHei", "PingFang SC", sans-serif',
-  pingfang: '"PingFang SC", "Microsoft YaHei", sans-serif',
-  "source-han":
-    '"Source Han Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif',
-  lxgw: '"LXGW WenKai", "KaiTi", "STKaiti", serif',
-});
 
 function isLocalMusicSourceValue(source) {
   const value = String(source || "").trim();
@@ -70,12 +50,10 @@ let webSettings = {
   webdavUsername: "",
   webdavPassword: "",
   webdavDir: "music-dl",
-  disableFloatingLyrics: false,
   webPageSize: DEFAULT_WEB_PAGE_SIZE,
   cliPageSize: DEFAULT_CLI_PAGE_SIZE,
   autoCheckUpdate: true,
   autoSwitchInvalidSources: true,
-  autoCacheOnPlay: false,
   filterVersionKeywords: false,
   versionFilterKeywords: "Live, Remix, Demo",
   filterShortTracks: false,
@@ -87,17 +65,6 @@ let webSettings = {
   sodaSignerToken: "",
   sodaClientDir: "",
   sodaLocalSignerAvailable: false,
-  vgChangeCover: false,
-  vgChangeAudio: false,
-  vgChangeLyric: false,
-  vgExportVideo: false,
-  shortcutPlayPause: DEFAULT_SHORTCUT_PLAY_PAUSE,
-  shortcutPrevious: "",
-  shortcutNext: "",
-  shortcutSeekBack: "",
-  shortcutSeekForward: "",
-  lyricFontFamily: DEFAULT_LYRIC_FONT_FAMILY,
-  lyricFontSize: DEFAULT_LYRIC_FONT_SIZE,
 };
 
 function normalizeWebSettings(raw) {
@@ -113,12 +80,10 @@ function normalizeWebSettings(raw) {
     webdavUsername: "",
     webdavPassword: "",
     webdavDir: "music-dl",
-    disableFloatingLyrics: false,
     webPageSize: DEFAULT_WEB_PAGE_SIZE,
     cliPageSize: DEFAULT_CLI_PAGE_SIZE,
     autoCheckUpdate: true,
     autoSwitchInvalidSources: true,
-    autoCacheOnPlay: false,
     filterVersionKeywords: false,
     versionFilterKeywords: "Live, Remix, Demo",
     filterShortTracks: false,
@@ -130,17 +95,6 @@ function normalizeWebSettings(raw) {
     sodaSignerToken: "",
     sodaClientDir: "",
     sodaLocalSignerAvailable: false,
-    vgChangeCover: false,
-    vgChangeAudio: false,
-    vgChangeLyric: false,
-    vgExportVideo: false,
-    shortcutPlayPause: DEFAULT_SHORTCUT_PLAY_PAUSE,
-    shortcutPrevious: "",
-    shortcutNext: "",
-    shortcutSeekBack: "",
-    shortcutSeekForward: "",
-    lyricFontFamily: DEFAULT_LYRIC_FONT_FAMILY,
-    lyricFontSize: DEFAULT_LYRIC_FONT_SIZE,
   };
 
   if (!raw || typeof raw !== "object") {
@@ -186,9 +140,6 @@ function normalizeWebSettings(raw) {
   if (typeof raw.webdavDir === "string" && raw.webdavDir.trim() !== "") {
     next.webdavDir = raw.webdavDir.trim().replace(/^\/+|\/+$/g, "");
   }
-  if (typeof raw.disableFloatingLyrics === "boolean") {
-    next.disableFloatingLyrics = raw.disableFloatingLyrics;
-  }
   if (Number.isInteger(raw.webPageSize) && raw.webPageSize > 0) {
     next.webPageSize = Math.min(raw.webPageSize, 500);
   }
@@ -200,9 +151,6 @@ function normalizeWebSettings(raw) {
   }
   if (typeof raw.autoSwitchInvalidSources === "boolean") {
     next.autoSwitchInvalidSources = raw.autoSwitchInvalidSources;
-  }
-  if (typeof raw.autoCacheOnPlay === "boolean") {
-    next.autoCacheOnPlay = raw.autoCacheOnPlay;
   }
   if (typeof raw.filterVersionKeywords === "boolean") {
     next.filterVersionKeywords = raw.filterVersionKeywords;
@@ -243,41 +191,6 @@ function normalizeWebSettings(raw) {
   }
   if (typeof raw.sodaLocalSignerAvailable === "boolean") {
     next.sodaLocalSignerAvailable = raw.sodaLocalSignerAvailable;
-  }
-  if (typeof raw.vgChangeCover === "boolean") {
-    next.vgChangeCover = raw.vgChangeCover;
-  }
-  if (typeof raw.vgChangeAudio === "boolean") {
-    next.vgChangeAudio = raw.vgChangeAudio;
-  }
-  if (typeof raw.vgChangeLyric === "boolean") {
-    next.vgChangeLyric = raw.vgChangeLyric;
-  }
-  if (typeof raw.vgExportVideo === "boolean") {
-    next.vgExportVideo = raw.vgExportVideo;
-  }
-  [
-    "shortcutPlayPause",
-    "shortcutPrevious",
-    "shortcutNext",
-    "shortcutSeekBack",
-    "shortcutSeekForward",
-  ].forEach((key) => {
-    if (typeof raw[key] === "string") {
-      next[key] = normalizeShortcutBinding(raw[key]);
-    }
-  });
-  if (
-    typeof raw.lyricFontFamily === "string" &&
-    Object.prototype.hasOwnProperty.call(
-      LYRIC_FONT_FAMILIES,
-      raw.lyricFontFamily,
-    )
-  ) {
-    next.lyricFontFamily = raw.lyricFontFamily;
-  }
-  if (Number.isInteger(raw.lyricFontSize)) {
-    next.lyricFontSize = Math.max(14, Math.min(48, raw.lyricFontSize));
   }
   return next;
 }
@@ -341,21 +254,6 @@ function bindSettingsTabs() {
   setSettingsTab(activeSettingsTab);
 }
 
-function applyVideoGenFeatureVisibility() {
-  const featureDisplayMap = {
-    vgChangeCover: "vg-feature-change-cover",
-    vgChangeAudio: "vg-feature-change-audio",
-    vgChangeLyric: "vg-feature-change-lyric",
-    vgExportVideo: "vg-feature-export-video",
-  };
-
-  Object.entries(featureDisplayMap).forEach(([key, elementId]) => {
-    const element = document.getElementById(elementId);
-    if (!element) return;
-    element.style.display = webSettings[key] ? "flex" : "none";
-  });
-}
-
 function syncWebDAVVisibility() {
   const fields = document.getElementById("webdav-settings-fields");
   if (fields) {
@@ -396,48 +294,6 @@ function bindWebDAVSettingEvents() {
   });
 }
 
-function floatingLyricsEnabled() {
-  return !webSettings.disableFloatingLyrics;
-}
-
-function syncFloatingLyricsSetting() {
-  document.body.classList.toggle(
-    "floating-lyrics-disabled",
-    !floatingLyricsEnabled(),
-  );
-  if (!window.KaraokeLyrics) return;
-  if (!floatingLyricsEnabled()) {
-    window.KaraokeLyrics.hide();
-    return;
-  }
-  if (window.ap?.list?.audios) {
-    window.ap.list.audios.forEach((audio) => {
-      if (!audio || audio.raw_lrc || audio.lrc || !audio.custom_id) return;
-      const lyricURLs = lyricURLsForSong({
-        id: audio.custom_id,
-        source: audio.source || "",
-        name: audio.name || "",
-        artist: audio.artist || "",
-        album: audio.album || "",
-        duration: audio.duration || 0,
-        extra: audio.extra || "",
-      });
-      audio.lrc = lyricURLs.line;
-      audio.raw_lrc = lyricURLs.auto;
-    });
-  }
-  if (window.ap?.audio && !window.ap.audio.paused) {
-    window.KaraokeLyrics.load(getCurrentAPlayerAudio());
-  }
-}
-
-function lyricURLsForPlayback(song) {
-  if (!floatingLyricsEnabled()) {
-    return { line: "", auto: "", download: lyricURLsForSong(song).download };
-  }
-  return lyricURLsForSong(song);
-}
-
 function syncDownloadDirPresetFromInput() {
   const presetSelect = document.getElementById("setting-download-dir-preset");
   const dirInput = document.getElementById("setting-download-dir");
@@ -458,293 +314,12 @@ function bindDownloadDirPresetEvents() {
   presetSelect.dataset.bound = "1";
   presetSelect.addEventListener("change", () => {
     if (presetSelect.value === DOWNLOAD_DIR_CUSTOM_VALUE) {
-      void pickDownloadFolder();
+      dirInput.focus();
       return;
     }
     dirInput.value = presetSelect.value;
   });
   dirInput.addEventListener("input", syncDownloadDirPresetFromInput);
-}
-
-function normalizeShortcutKey(key) {
-  const value = String(key || "").trim();
-  if (!value) return "";
-
-  const aliases = {
-    space: "Space",
-    spacebar: "Space",
-    esc: "Escape",
-    escape: "Escape",
-    enter: "Enter",
-    return: "Enter",
-    tab: "Tab",
-    backspace: "Backspace",
-    delete: "Delete",
-    del: "Delete",
-    insert: "Insert",
-    ins: "Insert",
-    home: "Home",
-    end: "End",
-    pageup: "PageUp",
-    pgup: "PageUp",
-    pagedown: "PageDown",
-    pgdn: "PageDown",
-    arrowleft: "ArrowLeft",
-    left: "ArrowLeft",
-    arrowright: "ArrowRight",
-    right: "ArrowRight",
-    arrowup: "ArrowUp",
-    up: "ArrowUp",
-    arrowdown: "ArrowDown",
-    down: "ArrowDown",
-    mediaplaypause: "MediaPlayPause",
-    mediatracknext: "MediaTrackNext",
-    mediatrackprevious: "MediaTrackPrevious",
-    mediastop: "MediaStop",
-  };
-  const lower = value.toLowerCase();
-  if (aliases[lower]) return aliases[lower];
-
-  if (/^key[a-z]$/i.test(value)) return value.slice(3).toUpperCase();
-  if (/^digit[0-9]$/i.test(value)) return value.slice(5);
-  if (/^f([1-9]|1[0-9]|2[0-4])$/i.test(value)) {
-    return value.toUpperCase();
-  }
-  if (value.length === 1) return value.toUpperCase();
-  return value.length <= 32 ? value : "";
-}
-
-function normalizeShortcutBinding(binding) {
-  const raw = String(binding || "").trim();
-  if (!raw) return "";
-
-  const modifiers = new Set();
-  let key = "";
-  for (const part of raw.split("+")) {
-    const value = part.trim();
-    if (!value) return "";
-    const lower = value.toLowerCase();
-    if (lower === "ctrl" || lower === "control") {
-      modifiers.add("Ctrl");
-    } else if (lower === "alt" || lower === "option") {
-      modifiers.add("Alt");
-    } else if (lower === "shift") {
-      modifiers.add("Shift");
-    } else if (
-      ["meta", "cmd", "command", "win", "super"].includes(lower)
-    ) {
-      modifiers.add("Meta");
-    } else {
-      if (key) return "";
-      key = normalizeShortcutKey(value);
-      if (!key) return "";
-    }
-  }
-  if (!key) return "";
-
-  return [
-    ...["Ctrl", "Alt", "Shift", "Meta"].filter((modifier) =>
-      modifiers.has(modifier),
-    ),
-    key,
-  ].join("+");
-}
-
-function shortcutBindingFromKeyboardEvent(event) {
-  const ignoredKeys = new Set(["Control", "Shift", "Alt", "Meta"]);
-  if (ignoredKeys.has(event.key)) return "";
-
-  const key = normalizeShortcutKey(event.code || event.key);
-  if (!key || key === "Unidentified") return "";
-
-  const modifiers = [];
-  if (event.ctrlKey) modifiers.push("Ctrl");
-  if (event.altKey) modifiers.push("Alt");
-  if (event.shiftKey) modifiers.push("Shift");
-  if (event.metaKey) modifiers.push("Meta");
-  modifiers.push(key);
-  return normalizeShortcutBinding(modifiers.join("+"));
-}
-
-function shortcutUsesPaginationKey(binding) {
-  const parts = normalizeShortcutBinding(binding).split("+");
-  const key = parts[parts.length - 1];
-  return key === "PageUp" || key === "PageDown";
-}
-
-function normalizeLyricFontFamily(value) {
-  const family = String(value || "").trim();
-  return Object.prototype.hasOwnProperty.call(LYRIC_FONT_FAMILIES, family)
-    ? family
-    : DEFAULT_LYRIC_FONT_FAMILY;
-}
-
-function normalizeLyricFontSize(value) {
-  const size = Number.parseInt(value, 10);
-  if (!Number.isFinite(size)) return DEFAULT_LYRIC_FONT_SIZE;
-  return Math.max(14, Math.min(48, size));
-}
-
-function lyricFontCSSValue(family) {
-  return (
-    LYRIC_FONT_FAMILIES[normalizeLyricFontFamily(family)] ||
-    LYRIC_FONT_FAMILIES[DEFAULT_LYRIC_FONT_FAMILY]
-  );
-}
-
-function applyLyricAppearance() {
-  const family = lyricFontCSSValue(webSettings.lyricFontFamily);
-  const size = normalizeLyricFontSize(webSettings.lyricFontSize);
-  document.documentElement.style.setProperty("--lyric-font-family", family);
-  document.documentElement.style.setProperty("--lyric-font-size", `${size}px`);
-}
-
-function updateLyricFontPreview(family, size) {
-  const preview = document.getElementById("setting-lyric-font-preview");
-  if (!preview) return;
-  preview.style.fontFamily = lyricFontCSSValue(family);
-  preview.style.fontSize = `${normalizeLyricFontSize(size)}px`;
-}
-
-function syncLyricAppearanceControls() {
-  const familyInput = document.getElementById("setting-lyric-font-family");
-  const sizeInput = document.getElementById("setting-lyric-font-size");
-  const sizeValue = document.getElementById(
-    "setting-lyric-font-size-value",
-  );
-  const family = normalizeLyricFontFamily(webSettings.lyricFontFamily);
-  const size = normalizeLyricFontSize(webSettings.lyricFontSize);
-
-  if (familyInput) familyInput.value = family;
-  if (sizeInput) sizeInput.value = String(size);
-  if (sizeValue) sizeValue.textContent = `${size} px`;
-  updateLyricFontPreview(family, size);
-  applyLyricAppearance();
-}
-
-function bindLyricFontSettingEvents() {
-  const familyInput = document.getElementById("setting-lyric-font-family");
-  const sizeInput = document.getElementById("setting-lyric-font-size");
-  const sizeValue = document.getElementById(
-    "setting-lyric-font-size-value",
-  );
-  if (!familyInput || !sizeInput || sizeInput.dataset.bound === "1") return;
-
-  sizeInput.dataset.bound = "1";
-  const preview = () => {
-    const size = normalizeLyricFontSize(sizeInput.value);
-    if (sizeValue) sizeValue.textContent = `${size} px`;
-    updateLyricFontPreview(familyInput.value, size);
-  };
-  familyInput.addEventListener("change", preview);
-  sizeInput.addEventListener("input", preview);
-}
-
-const PLAYBACK_SHORTCUT_FIELDS = Object.freeze([
-  ["shortcutPlayPause", "setting-shortcut-play-pause", "播放 / 暂停"],
-  ["shortcutPrevious", "setting-shortcut-previous", "上一首"],
-  ["shortcutNext", "setting-shortcut-next", "下一首"],
-  ["shortcutSeekBack", "setting-shortcut-seek-back", "后退 10 秒"],
-  ["shortcutSeekForward", "setting-shortcut-seek-forward", "前进 10 秒"],
-]);
-
-function setShortcutCaptureStatus(message = "", isError = false) {
-  const status = document.getElementById("setting-shortcut-status");
-  if (!status) return;
-  status.textContent =
-    message ||
-    "点击输入框后按下组合键；Backspace / Delete 清空，Esc 取消。PageUp / PageDown 保留给列表翻页。";
-  status.classList.toggle("is-error", isError);
-}
-
-function handleShortcutCaptureKeydown(event) {
-  if (event.key === "Tab") return;
-  event.preventDefault();
-  event.stopPropagation();
-  const input = event.currentTarget;
-
-  if (event.key === "Escape") {
-    input.value = input.dataset.previousValue || "";
-    setShortcutCaptureStatus();
-    input.blur();
-    return;
-  }
-  if (
-    (event.key === "Backspace" || event.key === "Delete") &&
-    !event.ctrlKey &&
-    !event.altKey &&
-    !event.metaKey
-  ) {
-    input.value = "";
-    setShortcutCaptureStatus();
-    return;
-  }
-  if (["Control", "Shift", "Alt", "Meta"].includes(event.key)) return;
-
-  const binding = shortcutBindingFromKeyboardEvent(event);
-  if (!binding) return;
-  if (shortcutUsesPaginationKey(binding)) {
-    setShortcutCaptureStatus(
-      "PageUp / PageDown 已用于列表翻页，请换一个按键组合。",
-      true,
-    );
-    return;
-  }
-  input.value = binding;
-  setShortcutCaptureStatus(`已捕获：${binding}`);
-}
-
-function syncPlaybackShortcutControls() {
-  PLAYBACK_SHORTCUT_FIELDS.forEach(([key, elementId]) => {
-    const input = document.getElementById(elementId);
-    if (input) input.value = normalizeShortcutBinding(webSettings[key]);
-  });
-}
-
-function bindPlaybackShortcutSettingEvents() {
-  document.querySelectorAll("[data-shortcut-input]").forEach((input) => {
-    if (input.dataset.bound === "1") return;
-    input.dataset.bound = "1";
-    input.addEventListener("focus", () => {
-      input.dataset.previousValue = input.value;
-      setShortcutCaptureStatus("请按下新的快捷键组合…");
-    });
-    input.addEventListener("keydown", handleShortcutCaptureKeydown);
-    input.addEventListener("blur", () => setShortcutCaptureStatus());
-  });
-  document.querySelectorAll("[data-shortcut-clear]").forEach((button) => {
-    if (button.dataset.bound === "1") return;
-    button.dataset.bound = "1";
-    button.addEventListener("click", () => {
-      const input = document.getElementById(button.dataset.shortcutClear);
-      if (!input) return;
-      input.value = "";
-      setShortcutCaptureStatus();
-      input.focus();
-    });
-  });
-}
-
-function readPlaybackShortcutSettingsFromForm() {
-  const settings = {};
-  const seen = new Map();
-  for (const [key, elementId, label] of PLAYBACK_SHORTCUT_FIELDS) {
-    const input = document.getElementById(elementId);
-    const binding = normalizeShortcutBinding(input?.value || "");
-    if (input) input.value = binding;
-    settings[key] = binding;
-    if (!binding) continue;
-    if (shortcutUsesPaginationKey(binding)) {
-      throw new Error(`${label} 不能使用 PageUp / PageDown，该按键保留给列表翻页。`);
-    }
-    if (seen.has(binding)) {
-      throw new Error(
-        `快捷键冲突：${seen.get(binding)} 和 ${label} 都使用了 ${binding}。`,
-      );
-    }
-    seen.set(binding, label);
-  }
-  return settings;
 }
 
 function applyWebSettings(settings) {
@@ -836,17 +411,6 @@ function applyWebSettings(settings) {
     downloadTipDurationInput.value = String(webSettings.downloadTipDuration);
   }
 
-  const floatingLyricsToggle = document.getElementById(
-    "setting-floating-lyrics",
-  );
-  if (floatingLyricsToggle) {
-    floatingLyricsToggle.checked = !webSettings.disableFloatingLyrics;
-  }
-  bindLyricFontSettingEvents();
-  syncLyricAppearanceControls();
-  bindPlaybackShortcutSettingEvents();
-  syncPlaybackShortcutControls();
-
   const webPageSizeInput = document.getElementById("setting-web-page-size");
   if (webPageSizeInput) {
     webPageSizeInput.value = String(
@@ -867,13 +431,6 @@ function applyWebSettings(settings) {
   if (autoSwitchInvalidSourcesToggle) {
     autoSwitchInvalidSourcesToggle.checked =
       webSettings.autoSwitchInvalidSources;
-  }
-
-  const autoCacheOnPlayToggle = document.getElementById(
-    "setting-auto-cache-on-play",
-  );
-  if (autoCacheOnPlayToggle) {
-    autoCacheOnPlayToggle.checked = webSettings.autoCacheOnPlay;
   }
 
   const filterVersionToggle = document.getElementById(
@@ -903,36 +460,6 @@ function applyWebSettings(settings) {
   }
   bindSearchFilterSettingEvents();
 
-  const vgChangeCoverToggle = document.getElementById(
-    "setting-vg-change-cover",
-  );
-  if (vgChangeCoverToggle) {
-    vgChangeCoverToggle.checked = webSettings.vgChangeCover;
-  }
-
-  const vgChangeAudioToggle = document.getElementById(
-    "setting-vg-change-audio",
-  );
-  if (vgChangeAudioToggle) {
-    vgChangeAudioToggle.checked = webSettings.vgChangeAudio;
-  }
-
-  const vgChangeLyricToggle = document.getElementById(
-    "setting-vg-change-lyric",
-  );
-  if (vgChangeLyricToggle) {
-    vgChangeLyricToggle.checked = webSettings.vgChangeLyric;
-  }
-
-  const vgExportVideoToggle = document.getElementById(
-    "setting-vg-export-video",
-  );
-  if (vgExportVideoToggle) {
-    vgExportVideoToggle.checked = webSettings.vgExportVideo;
-  }
-
-  applyVideoGenFeatureVisibility();
-  syncFloatingLyricsSetting();
   refreshDownloadLinks();
   if (webSettings.autoSwitchInvalidSources) {
     if (!wasAutoSwitchInvalidSourcesEnabled) {
@@ -985,11 +512,6 @@ function setAuthFloatLoggedIn(loggedIn) {
 
 async function refreshAuthFloat() {
   try {
-    // 桌面模式（127.0.0.1:37777）无认证概念，直接显示未登录
-    if (window.location.port === "37777" && window.location.hostname === "127.0.0.1") {
-      setAuthFloatLoggedIn(false);
-      return;
-    }
     const response = await fetch(API_ROOT + "/cookies", {
       method: "HEAD",
       headers: { Accept: "application/json" },
@@ -1046,26 +568,8 @@ function buildDownloadRequestURL(
   if (options.saveLocal) {
     params.set("save_local", "1");
   }
-  if (options.stream) {
-    params.set("stream", "1");
-  }
 
   return `${API_ROOT}/download?${params.toString()}`;
-}
-
-function buildStreamURL(id, source, name, artist, album, cover, extra) {
-  return buildDownloadRequestURL(
-    id,
-    source,
-    name,
-    artist,
-    album,
-    cover,
-    extra,
-    {
-      stream: true,
-    },
-  );
 }
 
 function buildDownloadURL(id, source, name, artist, album, cover, extra) {
@@ -1131,14 +635,9 @@ function buildLyricRequestURL(song, endpoint = "lyric", format = "auto") {
 
 function lyricURLsForSong(song) {
   return {
-    line: buildLyricRequestURL(song, "lyric", "line"),
-    auto: buildLyricRequestURL(song, "lyric", "auto"),
     download: buildLyricRequestURL(song, "download_lrc", "auto"),
   };
 }
-
-window.buildLyricRequestURL = buildLyricRequestURL;
-window.lyricURLsForSong = lyricURLsForSong;
 
 function updateDownloadButton(link) {
   if (!link) return;
@@ -1569,33 +1068,6 @@ function bindSongCardCovers(root = document) {
       ensureSongActionFold(card);
     }
     observeSongCardForInspect(card);
-
-    const coverWrap = card.querySelector(".cover-wrapper");
-    if (!coverWrap) return;
-
-    coverWrap.style.cursor = "pointer";
-    coverWrap.title = "点击生成视频";
-    coverWrap.onclick = (e) => {
-      e.stopPropagation();
-      if (window.VideoGen) {
-        const img = coverWrap.querySelector("img");
-        const currentCover = img ? img.src : card.dataset.cover || "";
-
-        window.VideoGen.open({
-          id: card.dataset.id,
-          source: card.dataset.source,
-          name: card.dataset.name,
-          artist: card.dataset.artist,
-          album: card.dataset.album || "",
-          cover: currentCover,
-          duration: parseInt(card.dataset.duration) || 0,
-          extra: card.dataset.extra || "",
-        });
-      } else {
-        console.error("VideoGen library not loaded.");
-        alert("视频生成组件加载失败，请刷新页面重试");
-      }
-    };
   });
 }
 
@@ -1690,85 +1162,6 @@ function toggleSongActionMenu(button, event) {
 
 let localMusicMatchCache = {};
 let batchMatchTimer = null;
-let autoCachePending = {}; // 防止重复缓存请求
-// This state is used by the DOM bootstrap below, so initialize it before any
-// page lifecycle callback can access it.
-let currentPlayingId = null;
-window.currentPlayingId = null;
-
-function isAutoCacheOnPlayEnabled() {
-  return webSettings.autoCacheOnPlay === true;
-}
-
-function scheduleAutoCache(audio) {
-  if (!isAutoCacheOnPlayEnabled()) return;
-  const src = audio.source || "";
-  if (src === "local" || src === "local-file") return;
-  const key = audio.custom_id || audio.name || "";
-  if (!key || autoCachePending[key] || localMusicMatchCache[audio.custom_id])
-    return;
-
-  autoCachePending[key] = true;
-  setTimeout(() => autoCacheTrack(audio, key), 2000);
-}
-
-function scheduleAutoCacheMatch(audio, key, attempt = 0) {
-  const delays = [1500, 3500, 6500];
-  const delay = delays[attempt];
-  if (!audio.custom_id || delay === undefined) {
-    delete autoCachePending[key];
-    return;
-  }
-
-  setTimeout(async () => {
-    await batchMatchLocalMusic();
-    if (localMusicMatchCache[audio.custom_id]) {
-      delete autoCachePending[key];
-      return;
-    }
-    scheduleAutoCacheMatch(audio, key, attempt + 1);
-  }, delay);
-}
-
-async function autoCacheTrack(
-  audio,
-  key = audio.custom_id || audio.name || "",
-) {
-  if (
-    !isAutoCacheOnPlayEnabled() ||
-    !key ||
-    localMusicMatchCache[audio.custom_id]
-  ) {
-    delete autoCachePending[key];
-    return;
-  }
-
-  try {
-    const resp = await fetch(API_ROOT + "/local_music/auto_cache", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Requested-With": "XMLHttpRequest",
-      },
-      body: JSON.stringify({
-        id: audio.custom_id || "",
-        source: audio.source || "",
-        name: audio.name || "",
-        artist: audio.artist || "",
-        album: audio.album || "",
-        cover: audio.cover || "",
-        extra: audio.extra || {},
-      }),
-    });
-    if (!resp.ok) return;
-    const data = await resp.json();
-    if (data.status === "started" || data.status === "in_progress") {
-      scheduleAutoCacheMatch(audio, key);
-      return;
-    }
-  } catch (_) {}
-  delete autoCachePending[key];
-}
 
 function scheduleBatchLocalMusicMatch() {
   // 只对搜索结果页做匹配（本地音乐页不需要）
@@ -1820,7 +1213,7 @@ function addLocalMatchBadge(card, match) {
   if (!tagsEl) return;
   const badge = document.createElement("span");
   badge.className = "tag tag-local-match";
-  badge.title = `本地已有: ${match.ext || "音频"} (${formatSizeBytes(match.size || 0)})，播放将优先使用本地文件`;
+  badge.title = `本地已有: ${match.ext || "音频"} (${formatSizeBytes(match.size || 0)})`;
   badge.textContent = "本地已有";
   badge.style.cssText = "background:#e3f2fd;color:#3182ce;cursor:default;";
   // 插入到 source tag 后面
@@ -1855,13 +1248,8 @@ function initializePageContent(root = document) {
   refreshDownloadLinks(root);
   bindSongCardCovers(root);
   updateBatchToolbar();
-  highlightCard(currentPlayingId);
-  syncAllPlayButtons();
-  syncMediaSession();
   initializeLocalMusicPage(root);
   scheduleBatchLocalMusicMatch();
-  syncTVFocusableElements(root);
-  scheduleTVInitialFocus();
 }
 
 function setSongListToolsOpen(tools, isOpen) {
@@ -1972,7 +1360,7 @@ function syncRightToolbar(nextDoc, currentContainer) {
 // 结果区顶部至少要有这么多像素可见，才认为用户已经能看到搜索结果。
 const MIN_VISIBLE_RESULTS_PX = 120;
 
-// 小屏（安卓 WebView）首屏几乎被搜索框与搜索源面板占满，搜索后若仍停在页面
+// 小屏首屏几乎被搜索框与搜索源面板占满，搜索后若仍停在页面
 // 顶部，结果列表会落在首屏之外，用户会误以为"搜索为空"。这里把结果区（无结果
 // 时为空状态提示）滚到视口顶部。结果区已有足够高度可见时不滚动，避免桌面端
 // 无谓跳动。只在搜索提交时调用，分页/播放列表等内部导航保持原行为。
@@ -2050,8 +1438,7 @@ async function navigateTo(url, options = {}) {
     cancelPendingSongInspections();
     currentContainer.innerHTML = nextContainer.innerHTML;
     syncRightToolbar(nextDoc, currentContainer);
-    defaultDocumentTitle = nextDoc.title || defaultDocumentTitle;
-    document.title = defaultDocumentTitle;
+    if (nextDoc.title) document.title = nextDoc.title;
 
     const renderedPage = nextContainer.querySelector(".page-summary");
     const renderedPageMatch = renderedPage
@@ -2086,15 +1473,6 @@ async function navigateTo(url, options = {}) {
     if (error && error.name === "AbortError") {
       return false;
     }
-    // WebView 可能不把 console 输出到 logcat，SPA 回退时把错误经桥接回传，
-    // 便于在壳层日志里定位是哪一步在安卓端失败。
-    try {
-      if (globalThis.callback && typeof globalThis.callback.musicDlAppState === "function") {
-        globalThis.callback.musicDlAppState(
-          "spa_error:" + (error && error.message ? error.message : String(error))
-        );
-      }
-    } catch (_) {}
     window.location.href = targetURL.toString();
     return false;
   } finally {
@@ -2179,54 +1557,6 @@ function handlePaginationShortcut(event) {
   goToPage(nextPage);
 }
 
-function togglePlayback() {
-  if (typeof ap === "undefined" || !ap || !ap.audio) return;
-  if (!ap.list || !Array.isArray(ap.list.audios) || ap.list.audios.length === 0)
-    return;
-  if (ap.audio.paused) {
-    ap.play();
-  } else {
-    ap.pause();
-  }
-}
-
-function handlePlaybackShortcut(event) {
-  if (event.defaultPrevented || event.isComposing) return;
-  if (
-    isEditableElement(event.target) ||
-    isEditableElement(document.activeElement)
-  )
-    return;
-  if (hasVisibleModalOverlay()) return;
-  if (
-    typeof ap === "undefined" ||
-    !ap ||
-    !ap.list ||
-    !ap.list.audios ||
-    ap.list.audios.length === 0
-  )
-    return;
-
-  const binding = shortcutBindingFromKeyboardEvent(event);
-  if (!binding) return;
-  const actions = [
-    [webSettings.shortcutPlayPause, togglePlayback],
-    [webSettings.shortcutPrevious, () => switchTrackByOffset(-1)],
-    [webSettings.shortcutNext, () => switchTrackByOffset(1)],
-    [webSettings.shortcutSeekBack, () => adjustCurrentTrackPosition(-10)],
-    [webSettings.shortcutSeekForward, () => adjustCurrentTrackPosition(10)],
-  ];
-  const action = actions.find(
-    ([shortcut]) =>
-      shortcut && normalizeShortcutBinding(shortcut) === binding,
-  );
-  if (!action) return;
-
-  event.preventDefault();
-  if (event.repeat && action[0] === webSettings.shortcutPlayPause) return;
-  action[1]();
-}
-
 function bindPageNavigationEvents() {
   if (pageNavigationEventsBound) return;
   pageNavigationEventsBound = true;
@@ -2287,7 +1617,6 @@ function bindPageNavigationEvents() {
   );
 
   document.addEventListener("keydown", handlePaginationShortcut);
-  document.addEventListener("keydown", handlePlaybackShortcut);
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") closeSongListTools();
   });
@@ -2300,556 +1629,7 @@ function bindPageNavigationEvents() {
   });
 }
 
-const TV_UI_QUERY_PARAM = "tv";
-const TV_FOCUSABLE_ATTRIBUTE = "data-tv-focusable";
-const TV_FOCUSABLE_SELECTOR = '[data-tv-focusable="1"]';
-const TV_INTERACTIVE_SELECTOR = [
-  "a[href]",
-  "button",
-  "input:not([type='hidden'])",
-  "select",
-  "textarea",
-  "summary",
-  "[role='button']",
-  "[role='tab']",
-  "[role='link']",
-  "[onclick]",
-  ".type-option",
-  ".source-option",
-  ".playlist-card",
-  ".song-card",
-  ".setting-toggle",
-  ".setting-link-row",
-  ".collection-item",
-  ".rt-btn",
-  ".rt-page-num",
-  ".aplayer-button",
-  ".aplayer-list-toggle",
-  ".vg-ctrl-icon",
-  ".vg-close",
-].join(",");
-
-let tvUIEnabled = false;
-let tvUIObserver = null;
-let tvInitialFocusTimer = 0;
-let tvActiveOverlay = null;
-let tvRestoreFocusElement = null;
-let tvKeyboardActive = false;
-
-function detectTVUIMode() {
-  const params = new URLSearchParams(window.location.search);
-  const requested = String(params.get(TV_UI_QUERY_PARAM) || "").toLowerCase();
-  if (requested === "1" || requested === "true" || requested === "yes") {
-    return true;
-  }
-  if (requested === "0" || requested === "false" || requested === "no") {
-    return false;
-  }
-
-  const ua = String(navigator.userAgent || "");
-  if (
-    /Android[ _-]?TV|Google[ _-]?TV|Fire[ _-]?TV|Smart[ _-]?TV|SMART-TV|BRAVIA|AFT[A-Z0-9]+|MiTV|MiBOX|NVIDIA[ _-]?SHIELD|Web0S|webOS\.TV/i.test(
-      ua,
-    )
-  ) {
-    return true;
-  }
-
-  try {
-    return (
-      window.matchMedia("(pointer: none)").matches &&
-      window.matchMedia("(min-width: 900px)").matches
-    );
-  } catch (_) {
-    return false;
-  }
-}
-
-function tvElementVisible(element) {
-  if (!element || !element.isConnected) return false;
-  if (
-    element.hidden ||
-    element.matches(":disabled, [aria-disabled='true']") ||
-    element.closest(
-      "[hidden], [inert], [aria-hidden='true'], [aria-disabled='true']",
-    )
-  ) {
-    return false;
-  }
-  if (
-    element.matches(".source-option") &&
-    element.querySelector(".source-checkbox:disabled")
-  ) {
-    return false;
-  }
-
-  const style = window.getComputedStyle(element);
-  if (
-    style.display === "none" ||
-    style.visibility === "hidden" ||
-    style.visibility === "collapse" ||
-    style.pointerEvents === "none" ||
-    Number(style.opacity) === 0
-  ) {
-    return false;
-  }
-
-  const rect = element.getBoundingClientRect();
-  return rect.width > 1 && rect.height > 1;
-}
-
-function syncTVFocusableElements(root = document) {
-  if (!tvUIEnabled || !root || typeof root.querySelectorAll !== "function") {
-    return;
-  }
-
-  const elements = [];
-  if (root.nodeType === Node.ELEMENT_NODE && root.matches(TV_INTERACTIVE_SELECTOR)) {
-    elements.push(root);
-  }
-  root.querySelectorAll(TV_INTERACTIVE_SELECTOR).forEach((element) => {
-    elements.push(element);
-  });
-
-  elements.forEach((element) => {
-    if (
-      element.matches("input[type='radio'], input[type='checkbox']") &&
-      element.closest("label.type-option, label.setting-toggle")
-    ) {
-      return;
-    }
-
-    const forcedFocusTarget = element.matches("[data-settings-tab]");
-    if (
-      !forcedFocusTarget &&
-      element.hasAttribute("tabindex") &&
-      Number(element.getAttribute("tabindex")) < 0
-    ) {
-      return;
-    }
-    if (!element.hasAttribute("tabindex")) {
-      element.tabIndex = 0;
-    }
-    element.setAttribute(TV_FOCUSABLE_ATTRIBUTE, "1");
-  });
-}
-
-function visibleTVOverlays() {
-  return Array.from(
-    document.querySelectorAll(".modal-overlay, .vg-overlay"),
-  ).filter(tvElementVisible);
-}
-
-function getActiveTVOverlay() {
-  const overlays = visibleTVOverlays();
-  return overlays.length ? overlays[overlays.length - 1] : null;
-}
-
-function getTVFocusCandidates() {
-  syncTVFocusableElements(document);
-  const overlay = getActiveTVOverlay();
-  const scope = overlay || document;
-  return Array.from(scope.querySelectorAll(TV_FOCUSABLE_SELECTOR)).filter(
-    tvElementVisible,
-  );
-}
-
-function activeTVFocusElement() {
-  const active = document.activeElement;
-  if (active && active.matches && active.matches(TV_FOCUSABLE_SELECTOR)) {
-    return active;
-  }
-  if (active && active.closest) {
-    return active.closest(TV_FOCUSABLE_SELECTOR);
-  }
-  return null;
-}
-
-function centerOfRect(rect) {
-  return {
-    x: rect.left + rect.width / 2,
-    y: rect.top + rect.height / 2,
-  };
-}
-
-function overlapLength(aStart, aEnd, bStart, bEnd) {
-  return Math.max(0, Math.min(aEnd, bEnd) - Math.max(aStart, bStart));
-}
-
-function bestTVFocusCandidate(direction, current, candidates) {
-  const currentRect = current.getBoundingClientRect();
-  const currentCenter = centerOfRect(currentRect);
-  let best = null;
-  let bestScore = Number.POSITIVE_INFINITY;
-
-  candidates.forEach((candidate) => {
-    if (candidate === current || !tvElementVisible(candidate)) return;
-    const rect = candidate.getBoundingClientRect();
-    const center = centerOfRect(rect);
-    const dx = center.x - currentCenter.x;
-    const dy = center.y - currentCenter.y;
-
-    let primary = 0;
-    let perpendicular = 0;
-    let overlap = 0;
-    if (direction === "left") {
-      if (dx >= -4) return;
-      primary = -dx;
-      perpendicular = Math.abs(dy);
-      overlap = overlapLength(currentRect.top, currentRect.bottom, rect.top, rect.bottom);
-    } else if (direction === "right") {
-      if (dx <= 4) return;
-      primary = dx;
-      perpendicular = Math.abs(dy);
-      overlap = overlapLength(currentRect.top, currentRect.bottom, rect.top, rect.bottom);
-    } else if (direction === "up") {
-      if (dy >= -4) return;
-      primary = -dy;
-      perpendicular = Math.abs(dx);
-      overlap = overlapLength(currentRect.left, currentRect.right, rect.left, rect.right);
-    } else if (direction === "down") {
-      if (dy <= 4) return;
-      primary = dy;
-      perpendicular = Math.abs(dx);
-      overlap = overlapLength(currentRect.left, currentRect.right, rect.left, rect.right);
-    } else {
-      return;
-    }
-
-    let score = primary + perpendicular * 1.55 - overlap * 0.55;
-    if (overlap <= 0) {
-      score += 120;
-    }
-    if (primary < perpendicular * 0.22) {
-      score += 240;
-    }
-    if (score < bestScore) {
-      best = candidate;
-      bestScore = score;
-    }
-  });
-
-  return best;
-}
-
-function scrollTVFocusIntoView(element) {
-  if (!element || !tvElementVisible(element)) return;
-  const rect = element.getBoundingClientRect();
-  const topSafe = 54;
-  const bottomSafe = Math.max(180, window.innerHeight - 170);
-  if (rect.top >= topSafe && rect.bottom <= bottomSafe) {
-    return;
-  }
-  try {
-    element.scrollIntoView({
-      block: "center",
-      inline: "nearest",
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
-    });
-  } catch (_) {
-    element.scrollIntoView();
-  }
-}
-
-function markTVKeyboardNavigation() {
-  tvKeyboardActive = true;
-  document.body.classList.add("tv-keyboard-active");
-}
-
-function focusTVElement(element) {
-  if (!element || !tvElementVisible(element)) return false;
-  try {
-    element.focus({ preventScroll: true });
-  } catch (_) {
-    element.focus();
-  }
-  markTVKeyboardNavigation();
-  scrollTVFocusIntoView(element);
-  return document.activeElement === element;
-}
-
-function navigateTVFocus(direction) {
-  if (!tvUIEnabled) return false;
-  const candidates = getTVFocusCandidates();
-  if (!candidates.length) return false;
-
-  const current = activeTVFocusElement();
-  if (!current) {
-    focusTVElement(defaultTVFocusTarget(candidates));
-    return true;
-  }
-  const next = bestTVFocusCandidate(direction, current, candidates);
-  if (!next) return false;
-  return focusTVElement(next);
-}
-
-function firstTVFocusMatch(scope, selectors) {
-  for (const selector of selectors) {
-    const match = scope.querySelector(selector);
-    if (match && tvElementVisible(match)) {
-      return match;
-    }
-  }
-  return null;
-}
-
-function defaultTVFocusTarget(candidates) {
-  const overlay = getActiveTVOverlay();
-  const preferred = overlay
-    ? firstTVFocusMatch(overlay, [
-        "[data-tv-autofocus]",
-        ".settings-tab.is-active",
-        ".modal-close",
-        "button",
-        "a[href]",
-        "input:not([type='hidden'])",
-        "select",
-      ])
-    : firstTVFocusMatch(document, [
-        "[data-tv-default-focus]",
-        ".type-option",
-        ".source-option",
-        "#search-keyword",
-        "button",
-        "a[href]",
-      ]);
-  if (preferred && candidates.includes(preferred)) {
-    return preferred;
-  }
-  return candidates[0];
-}
-
-function scheduleTVInitialFocus() {
-  if (!tvUIEnabled) return;
-  window.clearTimeout(tvInitialFocusTimer);
-  tvInitialFocusTimer = window.setTimeout(() => {
-    syncTVFocusableElements(document);
-    const overlay = getActiveTVOverlay();
-    const active = activeTVFocusElement();
-    const activeBelongsInScope =
-      active && (!overlay || overlay.contains(active));
-    if (!activeBelongsInScope) {
-      focusTVElement(defaultTVFocusTarget(getTVFocusCandidates()));
-    }
-  }, 80);
-}
-
-function activateTVElement(element) {
-  if (!element || !tvElementVisible(element)) return false;
-  if (element.matches(".song-card")) {
-    const playButton = element.querySelector(".btn-play");
-    if (playButton) {
-      playButton.click();
-      return true;
-    }
-  }
-  if (element.matches(".collection-item")) {
-    const clickable = element.querySelector(".col-clickable-area");
-    if (clickable) {
-      clickable.click();
-      return true;
-    }
-  }
-  element.click();
-  return true;
-}
-
-function closeTVTopLayer() {
-  if (!tvUIEnabled) return false;
-
-  const videoOverlay = document.getElementById("vg-modal");
-  if (
-    videoOverlay &&
-    tvElementVisible(videoOverlay) &&
-    window.VideoGen &&
-    typeof window.VideoGen.close === "function"
-  ) {
-    window.VideoGen.close();
-    return true;
-  }
-
-  const overlay = getActiveTVOverlay();
-  if (overlay) {
-    const closeButton = overlay.querySelector(
-      "[data-tv-back], .modal-close, [onclick*='style.display = \"none\"'], [onclick*=\"style.display = 'none'\"]",
-    );
-    if (closeButton) {
-      closeButton.click();
-    } else {
-      overlay.style.display = "none";
-    }
-    if (tvRestoreFocusElement && tvElementVisible(tvRestoreFocusElement)) {
-      window.setTimeout(() => focusTVElement(tvRestoreFocusElement), 0);
-    }
-    return true;
-  }
-
-  const openTools = Array.from(
-    document.querySelectorAll(".song-list-tools-popover"),
-  ).find((popover) => !popover.hidden);
-  if (openTools) {
-    closeSongListTools();
-    return true;
-  }
-  return false;
-}
-
-function handleTVMediaKey(key) {
-  if (
-    key === "MediaPlayPause" ||
-    key === "PlayPause" ||
-    key === "MediaPlay" ||
-    key === "MediaPause"
-  ) {
-    togglePlayback();
-    return true;
-  }
-  if (key === "MediaTrackNext" || key === "MediaFastForward") {
-    switchTrackByOffset(1);
-    return true;
-  }
-  if (key === "MediaTrackPrevious" || key === "MediaRewind") {
-    switchTrackByOffset(-1);
-    return true;
-  }
-  return false;
-}
-
-function handleTVNavigationAction(action) {
-  if (!tvUIEnabled) return false;
-  if (
-    action === "up" ||
-    action === "down" ||
-    action === "left" ||
-    action === "right"
-  ) {
-    return navigateTVFocus(action);
-  }
-  if (action === "enter") {
-    return activateTVElement(document.activeElement);
-  }
-  if (action === "back") {
-    return closeTVTopLayer();
-  }
-  if (handleTVMediaKey(action)) {
-    return true;
-  }
-  return false;
-}
-
-function handleTVKeyboardEvent(event) {
-  if (!tvUIEnabled || event.defaultPrevented || event.isComposing) return;
-  if (event.altKey || event.ctrlKey || event.metaKey) return;
-
-  const directionMap = {
-    ArrowUp: "up",
-    ArrowDown: "down",
-    ArrowLeft: "left",
-    ArrowRight: "right",
-  };
-  const direction = directionMap[event.key];
-  const current = document.activeElement;
-  const currentTag = current ? String(current.tagName || "").toLowerCase() : "";
-  const selectingControl =
-    currentTag === "select" ||
-    (current &&
-      current.matches &&
-      current.matches("input[type='range'], input[type='file']"));
-  const editingText =
-    current &&
-    current.matches &&
-    current.matches(
-      "input:not([type='button']):not([type='submit']):not([type='checkbox']):not([type='radio']):not([type='range']), textarea, [contenteditable='true']",
-    );
-
-  if (direction) {
-    if (
-      selectingControl ||
-      (editingText &&
-        currentTag === "textarea" &&
-        (direction === "up" || direction === "down" || direction === "left" || direction === "right")) ||
-      (editingText &&
-        currentTag === "input" &&
-        (direction === "left" || direction === "right"))
-    ) {
-      return;
-    }
-    if (handleTVNavigationAction(direction)) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    return;
-  }
-
-  if (event.key === "Enter" || event.key === "NumpadEnter") {
-    if (editingText || selectingControl || currentTag === "textarea") {
-      return;
-    }
-    if (handleTVNavigationAction("enter")) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    return;
-  }
-
-  if (event.key === "Escape" || event.key === "BrowserBack") {
-    if (handleTVNavigationAction("back")) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    return;
-  }
-
-  if (handleTVMediaKey(event.key)) {
-    event.preventDefault();
-    event.stopPropagation();
-  }
-}
-
-function initializeTVMode() {
-  tvUIEnabled = detectTVUIMode();
-  if (!tvUIEnabled) return;
-
-  document.documentElement.classList.add("tv-ui");
-  document.body.classList.add("tv-ui");
-  syncTVFocusableElements(document);
-  document.addEventListener("keydown", handleTVKeyboardEvent, true);
-  document.addEventListener(
-    "pointerdown",
-    () => {
-      tvKeyboardActive = false;
-      document.body.classList.remove("tv-keyboard-active");
-    },
-    { passive: true },
-  );
-  tvUIObserver = new MutationObserver(() => {
-    syncTVFocusableElements(document);
-    const nextOverlay = getActiveTVOverlay();
-    if (nextOverlay !== tvActiveOverlay) {
-      if (nextOverlay && !tvActiveOverlay) {
-        tvRestoreFocusElement = activeTVFocusElement();
-      }
-      tvActiveOverlay = nextOverlay;
-      scheduleTVInitialFocus();
-    }
-  });
-  tvUIObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ["class", "hidden", "style", "aria-hidden"],
-  });
-
-  window.__musicDlTVNavigate = navigateTVFocus;
-  window.__musicDlTVHandleKey = handleTVNavigationAction;
-  window.__musicDlHandleBack = closeTVTopLayer;
-  scheduleTVInitialFocus();
-}
-
 document.addEventListener("DOMContentLoaded", function () {
-  initializeTVMode();
   loadWebSettingsFromCache();
   applyWebSettings(webSettings);
   bindSettingsTabs();
@@ -2858,8 +1638,6 @@ document.addEventListener("DOMContentLoaded", function () {
   fetchWebSettings().finally(() => maybeAutoCheckUpdate());
   bindPageNavigationEvents();
   initializePageContent(document);
-  syncTVFocusableElements(document);
-  scheduleTVInitialFocus();
   updateFloatPageNav();
   // 直接打开搜索结果链接，或 SPA 失败回退到整页加载时，同样把结果滚入视口。
   // 仅在 URL 带搜索词时触发，普通页面加载不受影响。
@@ -2874,54 +1652,6 @@ document.addEventListener("DOMContentLoaded", function () {
     window.history.replaceState(null, "", url.toString());
     openSystemConfig();
   }
-  return;
-  /*
-
-    const cards = document.querySelectorAll('.song-card');
-    cards.forEach((card, index) => {
-        queueInspectSong(card, index * INSPECT_REQUEST_DELAY_MS);
-    });
-
-    cards.forEach(card => {
-        const coverWrap = card.querySelector('.cover-wrapper');
-        if (!coverWrap) return;
-        
-        coverWrap.style.cursor = 'pointer';
-        coverWrap.title = '点击生成视频';
-        
-        coverWrap.onclick = (e) => {
-            e.stopPropagation();
-            if (window.VideoGen) {
-                const img = coverWrap.querySelector('img');
-                const currentCover = img ? img.src : (card.dataset.cover || '');
-
-                window.VideoGen.open({
-                    id: card.dataset.id,
-                    source: card.dataset.source,
-                    name: card.dataset.name,
-                    artist: card.dataset.artist,
-                    cover: currentCover,
-                    duration: parseInt(card.dataset.duration) || 0
-                });
-            } else {
-                console.error("VideoGen library not loaded.");
-                alert("视频生成组件加载失败，请刷新页面重试");
-            }
-        };
-    });
-
-    document.addEventListener('click', async function(event) {
-        const link = event.target.closest('.btn-download');
-        if (!link) return;
-        if (!webSettings.downloadToLocal) return;
-        event.preventDefault();
-        await handleDownloadClick(link);
-    });
-
-    updateBatchToolbar();
-
-    syncAllPlayButtons();
-    */
 });
 
 function toggleSearchType(type) {
@@ -3435,9 +2165,6 @@ function renderLocalMusicPageCard(track) {
                 </div>
             </div>
             <div class="actions">
-                <button type="button" class="btn-circle btn-play" title="播放" onclick="playAllAndJumpTo(this)">
-                    <i class="fa-solid fa-play"></i>
-                </button>
                 <button type="button" class="btn-circle btn-fav" title="收藏到自制歌单" onclick="openAddToCollectionModal(this)">
                     <i class="fa-regular fa-heart"></i>
                 </button>
@@ -3578,9 +2305,6 @@ async function loadLocalMusicPage(page = 1, options = {}) {
     bindSongSortControls(list);
     bindSongCardCovers(list);
     updateBatchToolbar();
-    highlightCard(currentPlayingId);
-    syncAllPlayButtons();
-    syncMediaSession();
 
     if (options.updateHistory) {
       updateLocalMusicPageURL(targetPage, !!options.replaceHistory);
@@ -3698,28 +2422,6 @@ function showDuplicateModal(groups, loading, pagination = {}) {
         row.innerHTML = `<span class="duplicate-meta">${escapeHTML(s.ext || "?")} · ${sizeStr} · ${durStr}</span><span class="duplicate-actions"></span>`;
         const actions = row.querySelector(".duplicate-actions");
 
-        const playBtn = document.createElement("button");
-        playBtn.type = "button";
-        playBtn.className = "btn-pill btn-pill-primary";
-        playBtn.innerHTML = '<i class="fa-solid fa-play"></i> 播放';
-        playBtn.onclick = () => {
-          ap.list.clear();
-          ap.list.add([
-            {
-              name: s.name,
-              artist: s.artist,
-              url: buildStreamURL(s.id, "local", s.name, s.artist, "", "", ""),
-              cover: "",
-              lrc: "",
-              theme: "#10b981",
-              custom_id: s.id,
-              source: "local",
-              duration: s.duration || 0,
-            },
-          ]);
-          ap.play();
-        };
-
         const delBtn = document.createElement("button");
         delBtn.type = "button";
         delBtn.className = "btn-pill btn-pill-danger";
@@ -3731,7 +2433,6 @@ function showDuplicateModal(groups, loading, pagination = {}) {
           delBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
           try {
             await deleteLocalMusic(s.id);
-            stopDeletedLocalMusicPlayback(new Set([s.id]));
             await refreshLocalMusicPageAfterMutation();
             await checkDuplicateSongs(activeDuplicatePage);
           } catch (error) {
@@ -3744,7 +2445,6 @@ function showDuplicateModal(groups, loading, pagination = {}) {
           }
         };
 
-        actions.appendChild(playBtn);
         actions.appendChild(delBtn);
         gp.appendChild(row);
       });
@@ -5556,191 +4256,6 @@ async function clearDownloadRecords() {
   }
 }
 
-const PLAYBACK_HISTORY_STORAGE_KEY = "musicdl:playback-history";
-const PLAYBACK_HISTORY_LIMIT = 100;
-const PLAYBACK_HISTORY_PAGE_SIZE = 10;
-let activePlaybackHistoryEntries = [];
-let activePlaybackHistoryPage = 1;
-let lastPlaybackHistoryKey = "";
-let lastPlaybackHistoryAt = 0;
-
-function readPlaybackHistory() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(PLAYBACK_HISTORY_STORAGE_KEY) || "[]");
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((entry) => entry && entry.name && entry.source && entry.id)
-      .slice(0, PLAYBACK_HISTORY_LIMIT);
-  } catch (_) {
-    return [];
-  }
-}
-
-function writePlaybackHistory(entries) {
-  try {
-    localStorage.setItem(
-      PLAYBACK_HISTORY_STORAGE_KEY,
-      JSON.stringify(entries.slice(0, PLAYBACK_HISTORY_LIMIT)),
-    );
-  } catch (_) {
-    // 本地存储不可用时，播放本身不受影响。
-  }
-}
-
-function playbackHistoryKey(entry) {
-  return `${entry.source}\u0000${entry.id}`;
-}
-
-function rememberPlaybackHistory(audio) {
-  const id = String(getPlaybackCardID(audio) || "").trim();
-  const source = String(audio?.source || "").trim();
-  const name = String(audio?.name || "").trim();
-  if (!id || !source || !name) return;
-
-  const now = Date.now();
-  const entry = {
-    id,
-    source,
-    name,
-    artist: String(audio?.artist || "").trim(),
-    album: String(audio?.album || "").trim(),
-    cover: String(audio?.cover || "").trim(),
-    duration: Number(audio?.duration || 0) || 0,
-    extra: typeof audio?.extra === "string" ? audio.extra : serializeSongExtra(audio?.extra),
-    playedAt: now,
-  };
-  const key = playbackHistoryKey(entry);
-  if (key === lastPlaybackHistoryKey && now - lastPlaybackHistoryAt < 10_000) {
-    return;
-  }
-  lastPlaybackHistoryKey = key;
-  lastPlaybackHistoryAt = now;
-
-  const records = readPlaybackHistory().filter(
-    (item) => playbackHistoryKey(item) !== key,
-  );
-  records.unshift(entry);
-  writePlaybackHistory(records);
-}
-
-function formatPlaybackHistoryTime(value) {
-  const date = new Date(Number(value || 0));
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString();
-}
-
-function renderPlaybackHistory(page = activePlaybackHistoryPage) {
-  const countEl = document.getElementById("playback-history-count");
-  const listEl = document.getElementById("playback-history-list");
-  const paginationEl = document.getElementById("playback-history-pagination");
-  if (!listEl) return;
-
-  activePlaybackHistoryEntries = readPlaybackHistory();
-  const total = activePlaybackHistoryEntries.length;
-  const totalPages = Math.max(1, Math.ceil(total / PLAYBACK_HISTORY_PAGE_SIZE));
-  activePlaybackHistoryPage = Math.min(
-    Math.max(1, parsePositiveInt(page, 1)),
-    totalPages,
-  );
-  if (countEl) {
-    countEl.textContent = total
-      ? `最近播放 ${total} 首`
-      : "暂无播放记录";
-  }
-
-  if (total === 0) {
-    listEl.innerHTML = '<div class="utility-empty-state"><div><i class="fa-regular fa-clock"></i><br>开始播放歌曲后，记录会显示在这里</div></div>';
-    if (paginationEl) paginationEl.innerHTML = "";
-    return;
-  }
-
-  const offset = (activePlaybackHistoryPage - 1) * PLAYBACK_HISTORY_PAGE_SIZE;
-  const currentEntries = activePlaybackHistoryEntries.slice(
-    offset,
-    offset + PLAYBACK_HISTORY_PAGE_SIZE,
-  );
-  listEl.innerHTML = currentEntries
-    .map((entry, index) => {
-      const cover = entry.cover
-        ? `<img src="${escapeHTML(entry.cover)}" alt="">`
-        : '<i class="fa-solid fa-music"></i>';
-      const artist = escapeHTML(entry.artist || "未知歌手");
-      return `<div class="playback-history-item">
-        <div class="playback-history-cover">${cover}</div>
-        <div class="playback-history-main">
-          <div class="playback-history-name">${escapeHTML(entry.name)}</div>
-          <div class="playback-history-meta">${artist}</div>
-          <div class="playback-history-time">${escapeHTML(formatPlaybackHistoryTime(entry.playedAt))}</div>
-        </div>
-        <button type="button" class="playback-history-play" onclick="playPlaybackHistoryItem(${offset + index})"><i class="fa-solid fa-play"></i> 播放</button>
-      </div>`;
-    })
-    .join("");
-  if (paginationEl) {
-    paginationEl.innerHTML = renderUtilityModalPagination(
-      activePlaybackHistoryPage,
-      totalPages,
-      "renderPlaybackHistory",
-    );
-  }
-}
-
-function openPlaybackHistoryModal() {
-  const modal = document.getElementById("playbackHistoryModal");
-  if (!modal) return;
-  renderPlaybackHistory(1);
-  modal.style.display = "flex";
-}
-
-function closePlaybackHistoryModal() {
-  const modal = document.getElementById("playbackHistoryModal");
-  if (modal) modal.style.display = "none";
-}
-
-function clearPlaybackHistory() {
-  if (!confirm("确定清空播放历史？")) return;
-  try {
-    localStorage.removeItem(PLAYBACK_HISTORY_STORAGE_KEY);
-  } catch (_) {}
-  activePlaybackHistoryEntries = [];
-  activePlaybackHistoryPage = 1;
-  renderPlaybackHistory(1);
-}
-
-function playPlaybackHistoryItem(index) {
-  const entry = activePlaybackHistoryEntries[index];
-  if (!entry || !ap?.list) return;
-
-  const song = {
-    id: entry.id,
-    source: entry.source,
-    name: entry.name,
-    artist: entry.artist || "",
-    album: entry.album || "",
-    cover: entry.cover || "",
-    duration: Number(entry.duration || 0) || 0,
-    extra: entry.extra || "",
-  };
-  const lyricURLs = lyricURLsForPlayback(song);
-  ap.list.clear();
-  ap.list.add([{
-    name: song.name,
-    artist: song.artist,
-    album: song.album,
-    url: buildStreamURL(song.id, song.source, song.name, song.artist, song.album, song.cover, song.extra),
-    cover: song.cover,
-    lrc: lyricURLs.line,
-    raw_lrc: lyricURLs.auto,
-    theme: "#10b981",
-    custom_id: song.id,
-    source: song.source,
-    duration: song.duration,
-    extra: song.extra,
-  }]);
-  ap.play();
-  closePlaybackHistoryModal();
-}
-
 function escapeHtml(str) {
   if (!str) return "";
   return String(str)
@@ -5748,27 +4263,6 @@ function escapeHtml(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-// Native desktop selection returns an absolute path usable by the local server.
-async function pickDownloadFolder() {
-  const input = document.getElementById("setting-download-dir");
-  if (!input) return;
-  try {
-    if (typeof window.musicDlPickDownloadFolder !== "function") {
-      input.focus();
-      showToast("自定义下载目录", "当前浏览器无法获取服务器上的完整目录，请粘贴或输入目录路径。", "info");
-      return;
-    }
-    const path = await window.musicDlPickDownloadFolder();
-    if (!path) return;
-    input.value = path;
-    syncDownloadDirPresetFromInput();
-    input.dispatchEvent(new Event("input", {bubbles:true}));
-    input.focus();
-  } catch (err) {
-    showToast("选择目录失败", String(err.message || err), "error");
-  }
 }
 
 let openDownloadDirectoryInFlight = false;
@@ -5826,29 +4320,7 @@ function proxiedGithubURL(rawURL, proxyURL, enabled) {
   return `${(proxyURL || "").replace(/\/$/, "")}/${rawURL}`;
 }
 
-function desktopExternalOpenCallback() {
-  try {
-    if (
-      typeof globalThis !== "undefined" &&
-      globalThis.callback &&
-      typeof globalThis.callback.musicDlOpenDownload === "function"
-    ) {
-      return globalThis.callback.musicDlOpenDownload;
-    }
-  } catch (_) {}
-  return null;
-}
-
 function openClientExternalURL(url, popup = null) {
-  const callback = desktopExternalOpenCallback();
-  if (callback) {
-    callback(url);
-    if (popup && !popup.closed) {
-      popup.close();
-    }
-    return true;
-  }
-
   if (popup && !popup.closed) {
     try {
       popup.opener = null;
@@ -5871,8 +4343,7 @@ async function openLatestUpdatePage(target = "download") {
   const repoURL = webSettings.updateRepoUrl || DEFAULT_UPDATE_REPO_URL;
   const proxyEnabled = !!webSettings.githubProxyEnabled;
   const proxyURL = webSettings.githubProxyUrl || DEFAULT_GITHUB_PROXY_URL;
-  const callback = desktopExternalOpenCallback();
-  const popup = callback ? null : window.open("about:blank", "_blank");
+  const popup = window.open("about:blank", "_blank");
 
   let downloadURL = modal?.dataset.rawDownloadUrl || "";
   let releaseURL = modal?.dataset.releaseUrl || "";
@@ -5995,89 +4466,62 @@ async function saveCookies() {
     filterShortTracks: webSettings.filterShortTracks,
   };
 
-  let nextSettings;
-  try {
-    nextSettings = normalizeWebSettings({
-      embedDownload: !!document.getElementById("setting-embed-download")
-        ?.checked,
-      downloadLyricsToLocal: !!document.getElementById(
-        "setting-download-lyrics-to-local",
-      )?.checked,
-      downloadDir: document.getElementById("setting-download-dir")?.value || "",
-      downloadFilenameTemplate:
-        document.getElementById("setting-download-filename-template")?.value ||
-        "",
-      downloadTipDuration: parsePositiveInt(
-        document.getElementById("setting-download-tip-duration")?.value,
-        DEFAULT_DOWNLOAD_TIP_DURATION,
-      ),
-      webdavEnabled: !!document.getElementById("setting-webdav-enabled")
-        ?.checked,
-      webdavUrl: document.getElementById("setting-webdav-url")?.value || "",
-      webdavUsername:
-        document.getElementById("setting-webdav-username")?.value || "",
-      webdavPassword:
-        document.getElementById("setting-webdav-password")?.value || "",
-      webdavDir: document.getElementById("setting-webdav-dir")?.value || "",
-      disableFloatingLyrics: !document.getElementById(
-        "setting-floating-lyrics",
-      )?.checked,
-      webPageSize: parsePositiveInt(
-        webPageSizeInput?.value,
-        DEFAULT_WEB_PAGE_SIZE,
-      ),
-      cliPageSize: parsePositiveInt(
-        cliPageSizeInput?.value,
-        DEFAULT_CLI_PAGE_SIZE,
-      ),
-      autoCheckUpdate: webSettings.autoCheckUpdate,
-      autoSwitchInvalidSources: !!document.getElementById(
-        "setting-auto-switch-invalid-sources",
-      )?.checked,
-      autoCacheOnPlay: !!document.getElementById("setting-auto-cache-on-play")
-        ?.checked,
-      filterVersionKeywords: !!document.getElementById(
-        "setting-filter-version-keywords",
-      )?.checked,
-      versionFilterKeywords:
-        document.getElementById("setting-version-filter-keywords")?.value ||
-        "Live, Remix, Demo",
-      filterShortTracks: !!document.getElementById(
-        "setting-filter-short-tracks",
-      )?.checked,
-      normalizeChineseVariants: !!document.getElementById(
-        "setting-normalize-chinese-variants",
-      )?.checked,
-      updateRepoUrl: webSettings.updateRepoUrl || DEFAULT_UPDATE_REPO_URL,
-      githubProxyEnabled: !!webSettings.githubProxyEnabled,
-      githubProxyUrl: webSettings.githubProxyUrl || DEFAULT_GITHUB_PROXY_URL,
-      sodaSignerUrl:
-        document.getElementById("setting-soda-signer-url")?.value || "",
-      sodaSignerToken:
-        document.getElementById("setting-soda-signer-token")?.value || "",
-      sodaClientDir:
-        document.getElementById("setting-soda-client-dir")?.value || "",
-      vgChangeCover: !!document.getElementById("setting-vg-change-cover")
-        ?.checked,
-      vgChangeAudio: !!document.getElementById("setting-vg-change-audio")
-        ?.checked,
-      vgChangeLyric: !!document.getElementById("setting-vg-change-lyric")
-        ?.checked,
-      vgExportVideo: !!document.getElementById("setting-vg-export-video")
-        ?.checked,
-      ...readPlaybackShortcutSettingsFromForm(),
-      lyricFontFamily: normalizeLyricFontFamily(
-        document.getElementById("setting-lyric-font-family")?.value,
-      ),
-      lyricFontSize: normalizeLyricFontSize(
-        document.getElementById("setting-lyric-font-size")?.value,
-      ),
-    });
-  } catch (error) {
-    setShortcutCaptureStatus(error.message, true);
-    alert(error.message || "快捷键设置无效");
-    return;
-  }
+  const nextSettings = normalizeWebSettings({
+    embedDownload: !!document.getElementById("setting-embed-download")
+      ?.checked,
+    downloadLyricsToLocal: !!document.getElementById(
+      "setting-download-lyrics-to-local",
+    )?.checked,
+    downloadDir: document.getElementById("setting-download-dir")?.value || "",
+    downloadFilenameTemplate:
+      document.getElementById("setting-download-filename-template")?.value ||
+      "",
+    downloadTipDuration: parsePositiveInt(
+      document.getElementById("setting-download-tip-duration")?.value,
+      DEFAULT_DOWNLOAD_TIP_DURATION,
+    ),
+    webdavEnabled: !!document.getElementById("setting-webdav-enabled")
+      ?.checked,
+    webdavUrl: document.getElementById("setting-webdav-url")?.value || "",
+    webdavUsername:
+      document.getElementById("setting-webdav-username")?.value || "",
+    webdavPassword:
+      document.getElementById("setting-webdav-password")?.value || "",
+    webdavDir: document.getElementById("setting-webdav-dir")?.value || "",
+    webPageSize: parsePositiveInt(
+      webPageSizeInput?.value,
+      DEFAULT_WEB_PAGE_SIZE,
+    ),
+    cliPageSize: parsePositiveInt(
+      cliPageSizeInput?.value,
+      DEFAULT_CLI_PAGE_SIZE,
+    ),
+    autoCheckUpdate: webSettings.autoCheckUpdate,
+    autoSwitchInvalidSources: !!document.getElementById(
+      "setting-auto-switch-invalid-sources",
+    )?.checked,
+    filterVersionKeywords: !!document.getElementById(
+      "setting-filter-version-keywords",
+    )?.checked,
+    versionFilterKeywords:
+      document.getElementById("setting-version-filter-keywords")?.value ||
+      "Live, Remix, Demo",
+    filterShortTracks: !!document.getElementById(
+      "setting-filter-short-tracks",
+    )?.checked,
+    normalizeChineseVariants: !!document.getElementById(
+      "setting-normalize-chinese-variants",
+    )?.checked,
+    updateRepoUrl: webSettings.updateRepoUrl || DEFAULT_UPDATE_REPO_URL,
+    githubProxyEnabled: !!webSettings.githubProxyEnabled,
+    githubProxyUrl: webSettings.githubProxyUrl || DEFAULT_GITHUB_PROXY_URL,
+    sodaSignerUrl:
+      document.getElementById("setting-soda-signer-url")?.value || "",
+    sodaSignerToken:
+      document.getElementById("setting-soda-signer-token")?.value || "",
+    sodaClientDir:
+      document.getElementById("setting-soda-client-dir")?.value || "",
+  });
 
   const data = {};
   document.querySelectorAll('input[id^="cookie-"]').forEach((input) => {
@@ -6134,52 +4578,8 @@ async function saveCookies() {
   }
 }
 
-window.addEventListener("scroll", () => {
-  const topBtn = document.getElementById("back-to-top");
-  if (topBtn) {
-    if (window.scrollY > 300) {
-      topBtn.classList.add("show");
-    } else {
-      topBtn.classList.remove("show");
-    }
-  }
-  syncCurrentTrackLocator();
-});
-
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-function findSongCardById(songId) {
-  if (!songId) return null;
-  const targetId = String(songId);
-  return (
-    Array.from(document.querySelectorAll(".song-card")).find(
-      (card) => card.dataset.id === targetId,
-    ) || null
-  );
-}
-
-function findCurrentPlayingCard() {
-  return findSongCardById(currentPlayingId);
-}
-
-function syncCurrentTrackLocator() {
-  const button = document.getElementById("locate-current-track");
-  if (!button) return;
-  button.hidden = !findCurrentPlayingCard();
-}
-
-function scrollToCurrentPlaying() {
-  const card = findCurrentPlayingCard();
-  if (!card) {
-    syncCurrentTrackLocator();
-    showToast("当前播放歌曲不在本页", "可返回原列表或翻到歌曲所在页。", "info");
-    return;
-  }
-  card.scrollIntoView({ behavior: "smooth", block: "center" });
-  card.classList.add("locate-flash");
-  window.setTimeout(() => card.classList.remove("locate-flash"), 900);
 }
 
 // ==========================================
@@ -6307,2063 +4707,6 @@ function floatPageNumClick() {
   numEl.parentNode.replaceChild(input, numEl);
   input.focus();
   input.select();
-}
-
-let defaultDocumentTitle = document.title;
-let mediaSessionSyncTimer = 0;
-let mediaSessionSyncVersion = 0;
-const mediaSessionCoverCache = new Map();
-
-function mediaSessionControllerSupported() {
-  return typeof navigator !== "undefined" && !!navigator.mediaSession;
-}
-
-function mediaSessionMetadataSupported() {
-  return (
-    mediaSessionControllerSupported() &&
-    typeof window.MediaMetadata === "function"
-  );
-}
-
-function getCurrentAPlayerAudio() {
-  if (!ap || !ap.list || !Array.isArray(ap.list.audios)) return null;
-  const index = ap.list.index;
-  if (typeof index !== "number" || index < 0) return null;
-  return ap.list.audios[index] || null;
-}
-
-function getPlaybackCardID(audio) {
-  return String(audio?.original_id || audio?.custom_id || "").trim();
-}
-
-function buildMediaSessionTrackKey(audio = getCurrentAPlayerAudio()) {
-  if (!audio) return "";
-
-  const customId = String(audio.custom_id || "").trim();
-  if (customId) return customId;
-
-  const source = String(audio.source || "").trim();
-  const name = String(audio.name || "").trim();
-  const artist = String(audio.artist || "").trim();
-  if (!source && !name && !artist) return "";
-
-  return `${source}::${name}::${artist}`;
-}
-
-function normalizeMediaSessionURL(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-
-  try {
-    return new URL(raw, window.location.href).toString();
-  } catch (_) {
-    return raw;
-  }
-}
-
-function isTransientMediaSessionURL(value) {
-  const lowered = String(value || "")
-    .trim()
-    .toLowerCase();
-  return lowered.startsWith("data:") || lowered.startsWith("blob:");
-}
-
-function extractURLFromBackgroundImage(value) {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-
-  const match = raw.match(/^url\((['"]?)(.*)\1\)$/i);
-  if (!match || !match[2]) return "";
-  return match[2].trim();
-}
-
-function buildMediaSessionCoverURL(audio = getCurrentAPlayerAudio()) {
-  const candidates = [];
-  const trackKey = buildMediaSessionTrackKey(audio);
-
-  if (audio) {
-    candidates.push({
-      url: audio.cover,
-      source: audio.source || "",
-    });
-  }
-
-  const currentId =
-    getPlaybackCardID(audio) || String(currentPlayingId || "").trim();
-  if (currentId) {
-    const card = Array.from(document.querySelectorAll(".song-card")).find(
-      (item) => item?.dataset?.id === currentId,
-    );
-    if (card) {
-      const imgEl = card.querySelector(".cover-wrapper img");
-      if (imgEl && imgEl.src) {
-        candidates.unshift({
-          url: imgEl.src,
-          source: card.dataset.source || audio?.source || "",
-        });
-      }
-
-      if (card.dataset.cover) {
-        candidates.push({
-          url: card.dataset.cover,
-          source: card.dataset.source || audio?.source || "",
-        });
-      }
-    }
-  }
-
-  const apPic = document.querySelector(".aplayer-pic");
-  if (apPic?.style?.backgroundImage) {
-    const playerCover = extractURLFromBackgroundImage(
-      apPic.style.backgroundImage,
-    );
-    if (playerCover) {
-      candidates.unshift({
-        url: playerCover,
-        source: audio?.source || "",
-      });
-    }
-  }
-
-  const fallbackCandidates = [];
-  const seen = new Set();
-  for (const candidate of candidates) {
-    const normalized = normalizeMediaSessionURL(candidate?.url);
-    if (!normalized || seen.has(normalized)) continue;
-    seen.add(normalized);
-
-    if (isTransientMediaSessionURL(normalized)) {
-      fallbackCandidates.push(normalized);
-      continue;
-    }
-
-    try {
-      const parsed = new URL(normalized, window.location.href);
-      if (
-        parsed.origin === window.location.origin &&
-        parsed.pathname === `${API_ROOT}/cover_proxy`
-      ) {
-        const resolved = parsed.toString();
-        if (trackKey) {
-          mediaSessionCoverCache.set(trackKey, resolved);
-        }
-        return resolved;
-      }
-
-      const proxy = new URL(`${API_ROOT}/cover_proxy`, window.location.href);
-      proxy.searchParams.set("url", parsed.toString());
-      const sourceValue = String(candidate?.source || "").trim();
-      if (sourceValue) {
-        proxy.searchParams.set("source", sourceValue);
-      }
-      const resolved = proxy.toString();
-      if (trackKey) {
-        mediaSessionCoverCache.set(trackKey, resolved);
-      }
-      return resolved;
-    } catch (_) {
-      if (trackKey) {
-        mediaSessionCoverCache.set(trackKey, normalized);
-      }
-      return normalized;
-    }
-  }
-
-  if (trackKey) {
-    const cached = mediaSessionCoverCache.get(trackKey);
-    if (cached) {
-      return cached;
-    }
-  }
-
-  // Do not expose transient blob/data artwork URLs to MediaSession.
-  // They often expire quickly and cause a visible "flash then disappear" effect on MPRIS clients.
-  if (fallbackCandidates.length > 0 && trackKey) {
-    const cached = mediaSessionCoverCache.get(trackKey);
-    if (cached && !isTransientMediaSessionURL(cached)) {
-      return cached;
-    }
-  }
-
-  return "";
-}
-
-function buildMediaSessionArtwork(audio = getCurrentAPlayerAudio()) {
-  const src = buildMediaSessionCoverURL(audio);
-  if (!src) return [];
-
-  return [{ src }];
-}
-
-function updateDocumentTitleForMedia(audio) {
-  if (!audio || !audio.name) {
-    document.title = defaultDocumentTitle;
-    return;
-  }
-
-  const parts = [audio.name];
-  if (audio.artist) {
-    parts.push(audio.artist);
-  }
-  document.title = `${parts.join(" - ")} | music-dl`;
-}
-
-function shouldPreserveMediaSessionMetadata() {
-  return !!ap?.list?.audios?.length;
-}
-
-function updateMediaSessionMetadata(audio = getCurrentAPlayerAudio()) {
-  if (!mediaSessionControllerSupported()) return;
-
-  if (!audio) {
-    if (shouldPreserveMediaSessionMetadata()) {
-      return;
-    }
-    if (mediaSessionMetadataSupported()) {
-      navigator.mediaSession.metadata = null;
-    }
-    updateDocumentTitleForMedia(null);
-    return;
-  }
-
-  if (!mediaSessionMetadataSupported()) {
-    updateDocumentTitleForMedia(audio);
-    return;
-  }
-
-  const metadata = {
-    title: audio.name || "music-dl",
-    artist: audio.artist || "",
-  };
-
-  if (audio.album) {
-    metadata.album = audio.album;
-  }
-
-  const artwork = buildMediaSessionArtwork(audio);
-  if (artwork.length > 0) {
-    metadata.artwork = artwork;
-  }
-
-  navigator.mediaSession.metadata = new MediaMetadata(metadata);
-  updateDocumentTitleForMedia(audio);
-}
-
-function updateMediaSessionPlaybackState() {
-  if (!mediaSessionControllerSupported()) return;
-
-  const audio = getCurrentAPlayerAudio();
-  if (!ap?.audio || !audio) {
-    navigator.mediaSession.playbackState = "none";
-    return;
-  }
-
-  navigator.mediaSession.playbackState = ap.audio.paused ? "paused" : "playing";
-}
-
-function updateMediaSessionPositionState() {
-  if (!mediaSessionControllerSupported()) return;
-  if (
-    !ap?.audio ||
-    typeof navigator.mediaSession.setPositionState !== "function"
-  )
-    return;
-
-  const duration = Number(ap.audio.duration);
-  const position = Number(ap.audio.currentTime);
-  const playbackRate = Number(ap.audio.playbackRate) || 1;
-
-  if (!Number.isFinite(duration) || duration <= 0) return;
-  if (!Number.isFinite(position) || position < 0) return;
-
-  try {
-    navigator.mediaSession.setPositionState({
-      duration,
-      playbackRate,
-      position: Math.min(position, duration),
-    });
-  } catch (_) {}
-}
-
-function syncMediaSession(audio = getCurrentAPlayerAudio()) {
-  if (!mediaSessionControllerSupported()) return;
-  updateMediaSessionMetadata(audio);
-  updateMediaSessionPlaybackState();
-  updateMediaSessionPositionState();
-}
-
-function scheduleMediaSessionSync(
-  audio = getCurrentAPlayerAudio(),
-  delayMs = 160,
-) {
-  if (!mediaSessionControllerSupported()) return;
-
-  const expectedId = String(audio?.custom_id || "").trim();
-  const syncVersion = ++mediaSessionSyncVersion;
-
-  if (mediaSessionSyncTimer) {
-    clearTimeout(mediaSessionSyncTimer);
-  }
-
-  mediaSessionSyncTimer = setTimeout(
-    () => {
-      if (syncVersion !== mediaSessionSyncVersion) return;
-
-      const currentAudio = getCurrentAPlayerAudio();
-      if (
-        expectedId &&
-        currentAudio &&
-        String(currentAudio.custom_id || "").trim() !== expectedId
-      ) {
-        return;
-      }
-
-      syncMediaSession(currentAudio || audio);
-    },
-    Math.max(0, Number(delayMs) || 0),
-  );
-}
-
-function clearMediaSession() {
-  if (!mediaSessionControllerSupported()) return;
-  mediaSessionSyncVersion++;
-  if (mediaSessionSyncTimer) {
-    clearTimeout(mediaSessionSyncTimer);
-    mediaSessionSyncTimer = 0;
-  }
-  if (mediaSessionMetadataSupported()) {
-    navigator.mediaSession.metadata = null;
-  }
-  navigator.mediaSession.playbackState = "none";
-  updateDocumentTitleForMedia(null);
-}
-
-function switchTrackByOffset(offset) {
-  if (!ap?.list?.audios?.length) return;
-
-  const total = ap.list.audios.length;
-  const currentIndex =
-    typeof ap.list.index === "number" && ap.list.index >= 0 ? ap.list.index : 0;
-  const nextIndex = (currentIndex + offset + total) % total;
-
-  ap.list.switch(nextIndex);
-  ap.play();
-}
-
-function seekCurrentTrack(position) {
-  if (!ap?.audio) return;
-
-  const duration = Number(ap.audio.duration);
-  if (!Number.isFinite(duration) || duration <= 0) return;
-
-  const target = Math.max(0, Math.min(duration, Number(position) || 0));
-  try {
-    if (typeof ap.audio.fastSeek === "function") {
-      ap.audio.fastSeek(target);
-    } else {
-      ap.audio.currentTime = target;
-    }
-  } catch (_) {
-    ap.audio.currentTime = target;
-  }
-
-  updateMediaSessionPositionState();
-}
-
-function adjustCurrentTrackPosition(offset) {
-  if (!ap?.audio) return;
-  seekCurrentTrack((Number(ap.audio.currentTime) || 0) + offset);
-}
-
-function registerMediaSessionAction(action, handler) {
-  if (!mediaSessionControllerSupported()) return;
-  try {
-    navigator.mediaSession.setActionHandler(action, handler);
-  } catch (_) {}
-}
-
-function bindMediaSessionAudioEvents() {
-  if (!ap?.audio || ap.audio.dataset.mediaSessionBound === "1") return;
-
-  ap.audio.dataset.mediaSessionBound = "1";
-  const syncPosition = () => updateMediaSessionPositionState();
-  const syncState = () => {
-    updateMediaSessionPlaybackState();
-    updateMediaSessionPositionState();
-  };
-
-  [
-    "timeupdate",
-    "durationchange",
-    "loadedmetadata",
-    "seeked",
-    "ratechange",
-  ].forEach((eventName) => {
-    ap.audio.addEventListener(eventName, syncPosition);
-  });
-  ["play", "pause"].forEach((eventName) => {
-    ap.audio.addEventListener(eventName, syncState);
-  });
-  ap.audio.addEventListener("loadedmetadata", () => {
-    syncMediaSession();
-    scheduleMediaSessionSync(getCurrentAPlayerAudio(), 180);
-  });
-}
-
-function setupMediaSession() {
-  if (!mediaSessionControllerSupported()) return;
-
-  bindMediaSessionAudioEvents();
-
-  registerMediaSessionAction("play", () => {
-    if (!ap?.list?.audios?.length) return;
-    resumeVideoGenAudioRouting();
-    ap.play();
-  });
-  registerMediaSessionAction("pause", () => {
-    ap?.pause();
-  });
-  registerMediaSessionAction("stop", () => {
-    ap?.pause();
-    seekCurrentTrack(0);
-    syncMediaSession();
-  });
-  registerMediaSessionAction("previoustrack", () => {
-    switchTrackByOffset(-1);
-  });
-  registerMediaSessionAction("nexttrack", () => {
-    switchTrackByOffset(1);
-  });
-  registerMediaSessionAction("seekbackward", (details) => {
-    adjustCurrentTrackPosition(-(Number(details?.seekOffset) || 10));
-  });
-  registerMediaSessionAction("seekforward", (details) => {
-    adjustCurrentTrackPosition(Number(details?.seekOffset) || 10);
-  });
-  registerMediaSessionAction("seekto", (details) => {
-    if (!details || typeof details.seekTime !== "number") return;
-    seekCurrentTrack(details.seekTime);
-  });
-
-  bindMediaKeyFallback();
-  syncMediaSession();
-}
-
-let mediaKeysBound = false;
-
-// bindMediaKeyFallback 监听 WebView 经 DOM 下发的媒体键（部分车机/头机会把方向盘
-// 媒体键作为 KeyboardEvent 送进网页），作为系统 MediaSession 之外的兜底切歌途径。
-function bindMediaKeyFallback() {
-  if (mediaKeysBound) return;
-  mediaKeysBound = true;
-
-  document.addEventListener("keydown", function (event) {
-    if (event.defaultPrevented || event.isComposing) return;
-    if (
-      typeof ap === "undefined" ||
-      !ap ||
-      !ap.list ||
-      !ap.list.audios ||
-      ap.list.audios.length === 0
-    )
-      return;
-
-    switch (event.key) {
-      case "MediaTrackNext":
-        event.preventDefault();
-        switchTrackByOffset(1);
-        break;
-      case "MediaTrackPrevious":
-        event.preventDefault();
-        switchTrackByOffset(-1);
-        break;
-      case "MediaPlayPause":
-        event.preventDefault();
-        togglePlayback();
-        break;
-      case "MediaStop":
-        event.preventDefault();
-        if (ap.audio) ap.pause();
-        break;
-      default:
-        break;
-    }
-  });
-}
-
-const KaraokeLyrics = (() => {
-  const timeRe = /\[(\d+):(\d+)\.(\d{1,3})\]/g;
-  const fallbackLineDuration = 1200;
-  let container = null;
-  let body = null;
-  let currentKey = "";
-  let groups = [];
-  let activeIndex = -1;
-  let visible = false;
-  let animationFrame = 0;
-
-  function getProgress(ms, start, end) {
-    if (ms <= start) return 0;
-    if (!Number.isFinite(end) || end <= start) return 1;
-    return Math.max(0, Math.min(1, (ms - start) / (end - start)));
-  }
-
-  function getLyricHost() {
-    return (
-      document.querySelector(".aplayer.aplayer-fixed .aplayer-lrc") ||
-      document.querySelector(".aplayer-lrc") ||
-      document.querySelector(
-        ".aplayer.aplayer-fixed .aplayer-lrc .aplayer-lrc-contents",
-      ) ||
-      document.querySelector(".aplayer-lrc .aplayer-lrc-contents") ||
-      document.body
-    );
-  }
-
-  function ensureContainer() {
-    const host = getLyricHost();
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "karaoke-lyrics";
-      container.className = "karaoke-lyrics";
-      container.hidden = true;
-      container.innerHTML = '<div class="karaoke-lyrics-body"></div>';
-      body = container.querySelector(".karaoke-lyrics-body");
-    }
-    if (container.parentElement !== host) {
-      host.appendChild(container);
-    }
-    container.dataset.fallback = host === document.body ? "true" : "false";
-    return container;
-  }
-
-  function stopLoop() {
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame);
-      animationFrame = 0;
-    }
-  }
-
-  function animationTick() {
-    animationFrame = 0;
-    update();
-    if (visible && ap?.audio && !ap.audio.paused) {
-      animationFrame = requestAnimationFrame(animationTick);
-    }
-  }
-
-  function startLoop() {
-    if (animationFrame || !visible || !ap?.audio) return;
-    if (ap.audio.paused) {
-      update();
-      return;
-    }
-    animationFrame = requestAnimationFrame(animationTick);
-  }
-
-  function timeToMs(parts) {
-    const minute = Number(parts[1]) || 0;
-    const second = Number(parts[2]) || 0;
-    let ms = String(parts[3] || "0");
-    if (ms.length === 1) ms += "00";
-    if (ms.length === 2) ms += "0";
-    return minute * 60000 + second * 1000 + Number(ms.slice(0, 3));
-  }
-
-  function parseLine(line) {
-    timeRe.lastIndex = 0;
-    const matches = Array.from(line.matchAll(timeRe));
-    if (matches.length === 0) return null;
-    const start = timeToMs(matches[0]);
-    const words = [];
-    for (let i = 0; i < matches.length; i++) {
-      const textStart = matches[i].index + matches[i][0].length;
-      const textEnd =
-        i + 1 < matches.length ? matches[i + 1].index : line.length;
-      const text = line.slice(textStart, textEnd);
-      if (!text) continue;
-      words.push({
-        start: timeToMs(matches[i]),
-        end: i + 1 < matches.length ? timeToMs(matches[i + 1]) : null,
-        text,
-      });
-    }
-    const text = line.replace(timeRe, "").trim();
-    return { start, words, text, verbatim: matches.length > 1 };
-  }
-
-  function normalizeGroupWords(
-    sourceWords,
-    groupStart,
-    groupEnd,
-    fallbackText,
-  ) {
-    const words =
-      Array.isArray(sourceWords) && sourceWords.length > 0
-        ? sourceWords
-        : [{ text: fallbackText || "", start: groupStart, end: groupEnd }];
-    return words
-      .map((word, index) => {
-        const start = Number(word?.start);
-        const nextStart =
-          index + 1 < words.length ? Number(words[index + 1]?.start) : NaN;
-        let end = Number(word?.end);
-        const safeStart = Number.isFinite(start) ? start : groupStart;
-        if (!Number.isFinite(end) || end <= safeStart) {
-          end =
-            Number.isFinite(nextStart) && nextStart > safeStart
-              ? nextStart
-              : groupEnd;
-        }
-        return {
-          text: String(word?.text || ""),
-          start: safeStart,
-          end,
-        };
-      })
-      .filter((word) => word.text !== "");
-  }
-
-  function normalizeGroups(rawGroups) {
-    return (rawGroups || [])
-      .map((group, index, list) => {
-        const start = Number(group?.start || 0);
-        const nextStart =
-          index + 1 < list.length ? Number(list[index + 1]?.start || 0) : 0;
-        const end =
-          nextStart > start ? nextStart : start + fallbackLineDuration;
-        const lines = (group?.lines || []).map((line) => ({
-          ...line,
-          text: String(line?.text || ""),
-          words: normalizeGroupWords(line?.words, start, end, line?.text),
-        }));
-        return { start, end, lines };
-      })
-      .filter((group) => group.lines.some((line) => line.text));
-  }
-
-  function parse(raw) {
-    const map = new Map();
-    let hasVerbatim = false;
-    String(raw || "")
-      .split(/\r?\n/)
-      .forEach((rawLine) => {
-        const line = rawLine.trim();
-        if (!line || /^\[[A-Za-z]+:[^\]]*\]$/.test(line)) return;
-        const parsed = parseLine(line);
-        if (!parsed || !parsed.text) return;
-        hasVerbatim = hasVerbatim || parsed.verbatim;
-        if (!map.has(parsed.start)) {
-          map.set(parsed.start, { start: parsed.start, lines: [] });
-        }
-        map.get(parsed.start).lines.push(parsed);
-      });
-    const result = normalizeGroups(
-      Array.from(map.values()).sort((a, b) => a.start - b.start),
-    );
-    const hasMultiLang = result.some((group) => group.lines.length > 1);
-    return {
-      type: hasVerbatim || hasMultiLang ? "karaoke" : "line",
-      groups: result,
-    };
-  }
-
-  function looksLikeRomajiLine(line) {
-    const text = String(line?.text || "").trim();
-    if (!text) return false;
-    const latinCount = (text.match(/[A-Za-z]/g) || []).length;
-    const cjkOrKanaCount = (text.match(/[\u3040-\u30ff\u3400-\u9fff]/g) || [])
-      .length;
-    return latinCount > 0 && latinCount >= cjkOrKanaCount;
-  }
-
-  function splitGroupLines(lines) {
-    const [orig, ...extras] = lines || [];
-    let roma = null;
-    let trans = null;
-    extras.forEach((line) => {
-      if (!roma && looksLikeRomajiLine(line)) {
-        roma = line;
-        return;
-      }
-      if (!trans) {
-        trans = line;
-        return;
-      }
-      if (!roma) {
-        roma = line;
-      }
-    });
-    return { orig, roma, trans };
-  }
-
-  function renderGroup(group, index) {
-    const { orig, roma, trans } = splitGroupLines(group.lines);
-    const renderWords = (words, fallbackStart, fallbackEnd) =>
-      (words || [])
-        .map((word) =>
-          [
-            `<span class="karaoke-word" data-start="${word.start || fallbackStart}" data-end="${word.end || fallbackEnd}" style="--karaoke-progress:0%;">`,
-            `<span class="karaoke-word-base">${escapeHTML(word.text)}</span>`,
-            `<span class="karaoke-word-fill">${escapeHTML(word.text)}</span>`,
-            "</span>",
-          ].join(""),
-        )
-        .join("");
-    const renderLine = (line, className, useWordProgress) => {
-      if (!line?.text) return "";
-      const content =
-        useWordProgress && Array.isArray(line.words) && line.words.length > 0
-          ? renderWords(line.words, group.start, group.end)
-          : escapeHTML(line.text);
-      return `<div class="${className}">${content}</div>`;
-    };
-    return [
-      `<div class="karaoke-group" data-index="${index}" data-start="${group.start}">`,
-      renderLine(orig, "karaoke-orig", true),
-      renderLine(roma, "karaoke-roma", !!roma?.verbatim),
-      renderLine(trans, "karaoke-trans", !!trans?.verbatim),
-      "</div>",
-    ].join("");
-  }
-
-  function show(nextGroups) {
-    ensureContainer();
-    groups = nextGroups || [];
-    activeIndex = -1;
-    body.innerHTML = groups.map(renderGroup).join("");
-    visible = groups.length > 0;
-    container.hidden = !visible;
-    document.body.classList.toggle("karaoke-lyrics-active", visible);
-    startLoop();
-  }
-
-  function hide() {
-    ensureContainer();
-    stopLoop();
-    visible = false;
-    groups = [];
-    activeIndex = -1;
-    body.innerHTML = "";
-    container.hidden = true;
-    document.body.classList.remove("karaoke-lyrics-active");
-  }
-
-  async function load(audio) {
-    ensureContainer();
-    if (!floatingLyricsEnabled()) {
-      currentKey = "";
-      hide();
-      return;
-    }
-    const key = `${audio?.source || ""}:${audio?.custom_id || ""}:${audio?.raw_lrc || audio?.lrc || ""}`;
-    if (!audio || !key.trim()) {
-      currentKey = "";
-      hide();
-      return;
-    }
-    if (key === currentKey) {
-      update();
-      return;
-    }
-    currentKey = key;
-    hide();
-
-    const url = audio.raw_lrc || audio.lrc;
-    if (!url) return;
-    try {
-      const response = await fetch(url);
-      if (!response.ok) return;
-      const raw = await response.text();
-      if (key !== currentKey) return;
-      if (!floatingLyricsEnabled()) {
-        currentKey = "";
-        hide();
-        return;
-      }
-      const parsed = parse(raw);
-      if (parsed.type !== "karaoke") {
-        hide();
-        return;
-      }
-      show(parsed.groups);
-      update();
-      startLoop();
-    } catch (_) {
-      hide();
-    }
-  }
-
-  function update() {
-    if (!floatingLyricsEnabled()) return;
-    if (!visible || !ap?.audio || groups.length === 0) return;
-    const ms = Math.max(0, (Number(ap.audio.currentTime) || 0) * 1000);
-    let nextIndex = -1;
-    for (let i = 0; i < groups.length; i++) {
-      if (ms >= groups[i].start) nextIndex = i;
-      else break;
-    }
-    if (nextIndex < 0) return;
-
-    const active = body.querySelector(
-      `.karaoke-group[data-index="${nextIndex}"]`,
-    );
-    if (!active) return;
-    if (nextIndex !== activeIndex) {
-      body
-        .querySelectorAll(".karaoke-group.active")
-        .forEach((el) => el.classList.remove("active"));
-      active.classList.add("active");
-      const targetTop =
-        active.offsetTop -
-        Math.max(0, (body.clientHeight - active.clientHeight) / 2);
-      body.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-      activeIndex = nextIndex;
-    }
-    body.querySelectorAll(".karaoke-word").forEach((word) => {
-      const start = Number(word.dataset.start || 0);
-      const end = Number(word.dataset.end || start + fallbackLineDuration);
-      const progress = getProgress(ms, start, end);
-      // 核心修复：100% 进度时直接加上安全距离，防止强迫症切缝
-      word.style.setProperty(
-        "--karaoke-progress",
-        progress === 1 ? "calc(100% + 8px)" : `${(progress * 100).toFixed(3)}%`,
-      );
-      word.classList.toggle("is-active", progress > 0 && progress < 1);
-    });
-  }
-
-  function handlePlayStateChange(isPlaying) {
-    if (!floatingLyricsEnabled()) {
-      hide();
-      return;
-    }
-    if (isPlaying) {
-      startLoop();
-      return;
-    }
-    update();
-    stopLoop();
-  }
-
-  return { load, update, hide, parse, handlePlayStateChange };
-})();
-
-window.KaraokeLyrics = KaraokeLyrics;
-
-// APlayer Config. APlayer is bundled with the app. Guard initialization so
-// a player failure cannot interrupt the rest of the page.
-let ap = null;
-try {
-  if (typeof APlayer === "undefined") {
-    throw new Error("APlayer 资源未加载");
-  }
-  ap = new APlayer({
-    container: document.getElementById("aplayer"),
-    fixed: true,
-    autoplay: false,
-    theme: "#10b981",
-    loop: "all",
-    order: "list",
-    preload: "metadata",
-    volume: 0.7,
-    listFolded: false,
-    lrcType: 3,
-    audio: [],
-  });
-} catch (error) {
-  console.warn("[music-dl] APlayer 初始化失败，播放器功能不可用:", error);
-}
-
-window.ap = ap;
-
-let scheduledPlayback = null;
-let scheduledPlaybackTimer = null;
-let scheduledPlaybackTicker = null;
-let scheduledPlaybackTriggering = false;
-let scheduledPlaybackPresetNextAt = 0;
-
-function parseScheduledPlaybackTime(value) {
-  const match = String(value || "")
-    .trim()
-    .match(/^([01]\d|2[0-3]):([0-5]\d)$/);
-  if (!match) return null;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  return {
-    hour,
-    minute,
-    time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
-  };
-}
-
-function nextScheduledPlaybackTimestamp(timeValue, from = Date.now()) {
-  const parsed = parseScheduledPlaybackTime(timeValue);
-  if (!parsed) return 0;
-  const candidate = new Date(from);
-  candidate.setHours(parsed.hour, parsed.minute, 0, 0);
-  if (candidate.getTime() <= from) {
-    candidate.setDate(candidate.getDate() + 1);
-  }
-  return candidate.getTime();
-}
-
-function normalizeScheduledPlayback(raw, now = Date.now()) {
-  if (!raw || typeof raw !== "object") return null;
-  const parsed = parseScheduledPlaybackTime(raw.time);
-  if (!parsed) return null;
-  const nextAt = Number(raw.nextAt);
-  if (!Number.isFinite(nextAt) || nextAt <= now) return null;
-  return { time: parsed.time, nextAt };
-}
-
-function readScheduledPlayback() {
-  let raw = null;
-  try {
-    raw = JSON.parse(
-      localStorage.getItem(SCHEDULED_PLAYBACK_STORAGE_KEY) || "null",
-    );
-  } catch (_) {
-    return null;
-  }
-  if (!raw) return null;
-  const normalized = normalizeScheduledPlayback(raw);
-  if (!normalized) {
-    try {
-      localStorage.removeItem(SCHEDULED_PLAYBACK_STORAGE_KEY);
-    } catch (_) {
-      // Ignore storage cleanup failures; the invalid schedule is already inactive.
-    }
-  }
-  return normalized;
-}
-
-function persistScheduledPlayback() {
-  try {
-    if (scheduledPlayback) {
-      localStorage.setItem(
-        SCHEDULED_PLAYBACK_STORAGE_KEY,
-        JSON.stringify(scheduledPlayback),
-      );
-    } else {
-      localStorage.removeItem(SCHEDULED_PLAYBACK_STORAGE_KEY);
-    }
-  } catch (error) {
-    console.warn("[music-dl] 无法保存定时停止设置:", error);
-  }
-}
-
-function formatScheduledPlaybackDate(timestamp) {
-  const target = new Date(timestamp);
-  const now = new Date();
-  const time = `${String(target.getHours()).padStart(2, "0")}:${String(
-    target.getMinutes(),
-  ).padStart(2, "0")}`;
-  const targetDay = Date.UTC(
-    target.getFullYear(),
-    target.getMonth(),
-    target.getDate(),
-  );
-  const nowDay = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const dayOffset = Math.round((targetDay - nowDay) / 86400000);
-  if (dayOffset === 0) return `今天 ${time}`;
-  if (dayOffset === 1) return `明天 ${time}`;
-  return `${target.getMonth() + 1}月${target.getDate()}日 ${time}`;
-}
-
-function formatScheduledPlaybackCountdown(timestamp) {
-  const totalSeconds = Math.max(0, Math.ceil((timestamp - Date.now()) / 1000));
-  if (totalSeconds >= 3600) {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    return `${hours} 小时 ${minutes} 分钟`;
-  }
-  if (totalSeconds >= 60) {
-    const minutes = Math.floor(totalSeconds / 60);
-    return `${minutes} 分 ${totalSeconds % 60} 秒`;
-  }
-  return `${totalSeconds} 秒`;
-}
-
-function formatScheduledPlaybackBadge(timestamp) {
-  const totalSeconds = Math.max(0, Math.ceil((timestamp - Date.now()) / 1000));
-  if (totalSeconds >= 3600) return `${Math.ceil(totalSeconds / 3600)}h`;
-  if (totalSeconds >= 60) return `${Math.ceil(totalSeconds / 60)}m`;
-  return `${totalSeconds}s`;
-}
-
-function updateScheduledPlaybackUI() {
-  const active = Boolean(scheduledPlayback);
-  const button = document.getElementById("scheduled-playback-toolbar-button");
-  const badge = document.getElementById("scheduled-playback-toolbar-badge");
-  const statusTitle = document.getElementById("scheduled-playback-status-title");
-  const statusCopy = document.getElementById("scheduled-playback-status-copy");
-  const activePanel = document.getElementById("scheduled-playback-active");
-  const activeTarget = document.getElementById("scheduled-playback-active-target");
-  const activeCountdown = document.getElementById(
-    "scheduled-playback-active-countdown",
-  );
-
-  if (button) {
-    button.classList.toggle("is-scheduled", active);
-    const label = active
-      ? `定时停止：${formatScheduledPlaybackDate(
-          scheduledPlayback.nextAt,
-        )}，还有 ${formatScheduledPlaybackCountdown(scheduledPlayback.nextAt)}`
-      : "定时停止";
-    button.title = label;
-    button.setAttribute("aria-label", label);
-  }
-  if (badge) {
-    badge.hidden = !active;
-    badge.textContent = active
-      ? formatScheduledPlaybackBadge(scheduledPlayback.nextAt)
-      : "";
-  }
-  if (statusTitle && statusCopy) {
-    statusTitle.textContent = active ? "已设置定时停止" : "尚未设置定时停止";
-    statusCopy.textContent = active
-      ? `${formatScheduledPlaybackDate(scheduledPlayback.nextAt)}自动暂停播放`
-      : "选择时间后，播放器会在到点时自动暂停，播放清单会保留。";
-  }
-  if (activePanel) activePanel.hidden = !active;
-  if (activeTarget && activeCountdown && active) {
-    activeTarget.textContent = formatScheduledPlaybackDate(
-      scheduledPlayback.nextAt,
-    );
-    activeCountdown.textContent = `还有 ${formatScheduledPlaybackCountdown(
-      scheduledPlayback.nextAt,
-    )}`;
-  }
-}
-
-function scheduleScheduledPlaybackWake() {
-  if (scheduledPlaybackTimer) {
-    clearTimeout(scheduledPlaybackTimer);
-    scheduledPlaybackTimer = null;
-  }
-  if (!scheduledPlayback) return;
-  const untilTrigger = Math.max(0, scheduledPlayback.nextAt - Date.now());
-  const delay = Math.min(untilTrigger, SCHEDULED_PLAYBACK_WAKE_INTERVAL_MS);
-  scheduledPlaybackTimer = window.setTimeout(() => {
-    scheduledPlaybackTimer = null;
-    checkScheduledPlayback();
-  }, delay);
-}
-
-function checkScheduledPlayback() {
-  if (!scheduledPlayback || scheduledPlaybackTriggering) return;
-  if (Date.now() < scheduledPlayback.nextAt) {
-    scheduleScheduledPlaybackWake();
-    updateScheduledPlaybackUI();
-    return;
-  }
-  void triggerScheduledPlayback();
-}
-
-function triggerScheduledPlayback() {
-  if (!scheduledPlayback || scheduledPlaybackTriggering) return;
-  scheduledPlaybackTriggering = true;
-  scheduledPlayback = null;
-  persistScheduledPlayback();
-  scheduleScheduledPlaybackWake();
-  updateScheduledPlaybackUI();
-
-  try {
-    if (!ap?.audio) {
-      throw new Error("播放器尚未准备好");
-    }
-    const wasPlaying = !ap.audio.paused && !ap.audio.ended;
-    ap.pause();
-    showToast(
-      wasPlaying ? "定时停止已执行" : "定时停止已触发",
-      wasPlaying ? "播放器已暂停，播放清单会保留。" : "播放器当前已经处于暂停状态。",
-      wasPlaying ? "success" : "info",
-      5000,
-    );
-  } catch (error) {
-    showToast(
-      "定时停止失败",
-      error?.message || "无法暂停播放器，请手动点击暂停按钮。",
-      "error",
-      9000,
-    );
-  } finally {
-    scheduledPlaybackTriggering = false;
-    scheduleScheduledPlaybackWake();
-    updateScheduledPlaybackUI();
-  }
-}
-
-function defaultScheduledPlaybackTime() {
-  const target = new Date(Date.now() + 30 * 60 * 1000);
-  return `${String(target.getHours()).padStart(2, "0")}:${String(
-    target.getMinutes(),
-  ).padStart(2, "0")}`;
-}
-
-function applyScheduledPlaybackPreset(minutes) {
-  const duration = Math.min(
-    24 * 60,
-    Math.max(1, Number(minutes) || 0),
-  );
-  const target = new Date(Date.now() + duration * 60 * 1000);
-  const input = document.getElementById("scheduled-playback-time");
-  if (!input) return;
-  scheduledPlaybackPresetNextAt = target.getTime();
-  input.value = `${String(target.getHours()).padStart(2, "0")}:${String(
-    target.getMinutes(),
-  ).padStart(2, "0")}`;
-}
-
-function openScheduledPlaybackModal() {
-  const modal = document.getElementById("scheduledPlaybackModal");
-  const timeInput = document.getElementById("scheduled-playback-time");
-  scheduledPlaybackPresetNextAt = 0;
-  if (timeInput) {
-    timeInput.value =
-      scheduledPlayback?.time || timeInput.value || defaultScheduledPlaybackTime();
-  }
-  updateScheduledPlaybackUI();
-  if (modal) modal.style.display = "flex";
-  window.setTimeout(() => timeInput?.focus(), 0);
-}
-
-function closeScheduledPlaybackModal() {
-  const modal = document.getElementById("scheduledPlaybackModal");
-  if (modal) modal.style.display = "none";
-}
-
-function saveScheduledPlayback(event) {
-  event?.preventDefault();
-  const timeValue = document.getElementById("scheduled-playback-time")?.value;
-  const parsed = parseScheduledPlaybackTime(timeValue);
-  if (!parsed) {
-    showToast("时间格式不正确", "请选择有效的停止时间。", "error");
-    return false;
-  }
-  const nextAt =
-    scheduledPlaybackPresetNextAt > Date.now()
-      ? scheduledPlaybackPresetNextAt
-      : nextScheduledPlaybackTimestamp(parsed.time);
-  scheduledPlayback = {
-    time: parsed.time,
-    nextAt,
-  };
-  scheduledPlaybackPresetNextAt = 0;
-  persistScheduledPlayback();
-  scheduleScheduledPlaybackWake();
-  updateScheduledPlaybackUI();
-  closeScheduledPlaybackModal();
-  showToast(
-    "定时停止已设置",
-    `${formatScheduledPlaybackDate(scheduledPlayback.nextAt)}自动暂停播放。请保持页面运行。`,
-    "success",
-    5000,
-  );
-  return false;
-}
-
-function cancelScheduledPlayback(showFeedback = true) {
-  scheduledPlayback = null;
-  scheduledPlaybackPresetNextAt = 0;
-  persistScheduledPlayback();
-  scheduleScheduledPlaybackWake();
-  updateScheduledPlaybackUI();
-  if (showFeedback) {
-    showToast("定时停止已取消", "播放器不会再按原计划自动暂停。", "info", 3500);
-  }
-}
-
-function initializeScheduledPlayback() {
-  try {
-    localStorage.removeItem(SCHEDULED_PLAYBACK_LEGACY_STORAGE_KEY);
-  } catch (_) {
-    // Legacy schedules are ignored even if local storage is unavailable.
-  }
-  scheduledPlayback = readScheduledPlayback();
-  scheduleScheduledPlaybackWake();
-  updateScheduledPlaybackUI();
-  if (!scheduledPlaybackTicker) {
-    scheduledPlaybackTicker = window.setInterval(updateScheduledPlaybackUI, 1000);
-  }
-
-  document
-    .querySelectorAll("[data-scheduled-playback-minutes]")
-    .forEach((button) => {
-      button.addEventListener("click", () => {
-        applyScheduledPlaybackPreset(
-          Number(button.dataset.scheduledPlaybackMinutes),
-        );
-      });
-    });
-
-  document
-    .getElementById("scheduled-playback-time")
-    ?.addEventListener("input", () => {
-      scheduledPlaybackPresetNextAt = 0;
-    });
-
-  document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) checkScheduledPlayback();
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") return;
-    const modal = document.getElementById("scheduledPlaybackModal");
-    if (!modal || window.getComputedStyle(modal).display === "none") return;
-    event.preventDefault();
-    closeScheduledPlaybackModal();
-  });
-  window.addEventListener("focus", checkScheduledPlayback);
-  window.addEventListener("pageshow", checkScheduledPlayback);
-}
-
-window.musicDlScheduledStop = {
-  open: openScheduledPlaybackModal,
-  cancel: cancelScheduledPlayback,
-  getState: () => (scheduledPlayback ? { ...scheduledPlayback } : null),
-};
-
-initializeScheduledPlayback();
-
-function resumeVideoGenAudioRouting() {
-  const videoGen = window.VideoGen;
-  if (videoGen && typeof videoGen.resumeAudioRouting === "function") {
-    videoGen.resumeAudioRouting();
-  }
-}
-
-// Resume the prepared Web Audio graph during the user's gesture, before
-// APlayer starts playback. This avoids rerouting active audio when the user
-// later opens the player-cover detail view.
-document.addEventListener("pointerdown", resumeVideoGenAudioRouting, {
-  capture: true,
-  passive: true,
-});
-document.addEventListener("keydown", resumeVideoGenAudioRouting, {
-  capture: true,
-});
-
-let lastTaskbarPlaybackState = "";
-
-function currentPlayerActionSong(audio = getCurrentAPlayerAudio()) {
-  if (!audio) return null;
-  const playbackSource = String(audio.source || "").trim();
-  const originalSource = String(audio.original_source || "").trim();
-  const preferOriginal =
-    isLocalMusicSourceValue(playbackSource) &&
-    originalSource &&
-    !isLocalMusicSourceValue(originalSource);
-  const id = String(
-    preferOriginal
-      ? audio.original_id || audio.custom_id || ""
-      : audio.custom_id || audio.original_id || "",
-  ).trim();
-  const source = preferOriginal
-    ? originalSource
-    : playbackSource || originalSource;
-  if (!id || !source) return null;
-
-  return {
-    id,
-    source,
-    name: audio.name || "",
-    artist: audio.artist || "",
-    album: audio.album || "",
-    cover: audio.cover || "",
-    duration: Number(audio.duration) || 0,
-    extra: normalizeSongExtra(audio.extra),
-  };
-}
-
-function ensurePlayerTrackActions(player) {
-  let actions = player.querySelector(".player-track-actions");
-  if (actions) return actions;
-
-  actions = document.createElement("div");
-  actions.className = "player-track-actions";
-
-  const favorite = document.createElement("button");
-  favorite.type = "button";
-  favorite.className = "player-track-action player-track-favorite";
-  favorite.title = "收藏当前歌曲";
-  favorite.setAttribute("aria-label", "收藏当前歌曲");
-  favorite.innerHTML = '<i class="fa-regular fa-heart" aria-hidden="true"></i>';
-  favorite.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const song = currentPlayerActionSong();
-    if (song) openAddToCollectionForSong(song);
-  });
-
-  const download = document.createElement("a");
-  download.className = "player-track-action player-track-download btn-download";
-  download.target = "_blank";
-  download.rel = "noopener";
-  download.innerHTML = '<i class="fa-solid fa-download" aria-hidden="true"></i>';
-  download.addEventListener("click", (event) => {
-    if (download.getAttribute("aria-disabled") !== "true") return;
-    event.preventDefault();
-    event.stopPropagation();
-  });
-
-  actions.append(favorite, download);
-  (player.querySelector(".aplayer-body") || player).appendChild(actions);
-  return actions;
-}
-
-function syncPlayerTrackActions(player) {
-  const actions = ensurePlayerTrackActions(player);
-  const favorite = actions.querySelector(".player-track-favorite");
-  const download = actions.querySelector(".player-track-download");
-  const song = currentPlayerActionSong();
-  const canDownload = Boolean(song && !isLocalMusicSourceValue(song.source));
-
-  favorite.disabled = !song;
-  favorite.setAttribute("aria-disabled", String(!song));
-  favorite.title = song ? "收藏当前歌曲" : "当前没有可收藏的歌曲";
-  favorite.setAttribute("aria-label", favorite.title);
-
-  if (canDownload) {
-    download.href = buildDownloadURL(
-      song.id,
-      song.source,
-      song.name,
-      song.artist,
-      song.album,
-      song.cover,
-      serializeSongExtra(song.extra),
-    );
-    download.title = "下载当前歌曲";
-    download.setAttribute("aria-label", "下载当前歌曲");
-    download.setAttribute("aria-disabled", "false");
-    download.removeAttribute("tabindex");
-  } else {
-    download.removeAttribute("href");
-    download.title = song ? "本地歌曲无需下载" : "当前没有可下载的歌曲";
-    download.setAttribute("aria-label", download.title);
-    download.setAttribute("aria-disabled", "true");
-    download.setAttribute("tabindex", "-1");
-  }
-}
-
-function syncPlayerTrackControls() {
-  const player = document.querySelector(".aplayer.aplayer-fixed");
-  const hasTracks = Boolean(ap?.list?.audios?.length);
-  player?.classList.toggle("is-empty", !hasTracks);
-  if (!player) return;
-  syncPlayerTrackActions(player);
-  syncPlaybackQueueControls(player);
-
-  const controls = [
-    [".aplayer-icon-back", "上一首"],
-    [".aplayer-icon-forward", "下一首"],
-    [".aplayer-icon-order", "切换播放模式"],
-    [".aplayer-icon-loop", "切换播放模式"],
-    [".aplayer-icon-menu", "播放列表"],
-    [".aplayer-icon-volume-down", "调整音量"],
-    [".aplayer-icon-volume-up", "调整音量"],
-    [".aplayer-icon-volume-off", "调整音量"],
-    [".aplayer-icon-lrc", "显示或隐藏歌词"],
-  ];
-  controls.forEach(([selector, label]) => {
-    const button = player.querySelector(selector);
-    if (!button) return;
-    button.title = label;
-    button.setAttribute("aria-label", label);
-  });
-
-  const playButton = player.querySelector(".aplayer-icon-play");
-  if (playButton) {
-    const label = ap?.audio && !ap.audio.paused ? "暂停" : "播放";
-    playButton.title = label;
-    playButton.setAttribute("aria-label", label);
-  }
-}
-
-function syncTaskbarPlaybackState() {
-  const hasTracks = Boolean(ap?.list?.audios?.length);
-  const isPlaying = Boolean(
-    hasTracks && ap?.audio && !ap.audio.paused && !ap.audio.ended,
-  );
-  const nextState = `${hasTracks}:${isPlaying}`;
-  if (nextState === lastTaskbarPlaybackState) return;
-  if (typeof window.musicDlTaskbarState !== "function") return;
-
-  lastTaskbarPlaybackState = nextState;
-  Promise.resolve(window.musicDlTaskbarState(hasTracks, isPlaying)).catch(
-    () => {
-      lastTaskbarPlaybackState = "";
-    },
-  );
-}
-
-window.musicDlTaskbarControl = function (action, value) {
-  switch (action) {
-    case "previous":
-      switchTrackByOffset(-1);
-      return true;
-    case "toggle":
-      togglePlayback();
-      return true;
-    case "next":
-      switchTrackByOffset(1);
-      return true;
-    case "play":
-      if (!ap?.list?.audios?.length) return false;
-      resumeVideoGenAudioRouting();
-      ap.play();
-      return true;
-    case "pause":
-      ap?.pause();
-      return true;
-    case "stop":
-      ap?.pause();
-      seekCurrentTrack(0);
-      currentPlayingId = null;
-      window.currentPlayingId = null;
-      highlightCard(null);
-      syncAllPlayButtons();
-      return true;
-    case "seek": {
-      const positionSeconds = (Number(value) || 0) / 1000;
-      seekCurrentTrack(positionSeconds);
-      return true;
-    }
-    default:
-      return false;
-  }
-};
-
-const AI_PLAYER_PATH = `${API_ROOT}/api/ai/player`;
-const AI_PLAYER_CLIENT_ID =
-  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-    ? crypto.randomUUID()
-    : `player-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-let aiPlayerEventSource = null;
-let aiPlayerStatePublishing = false;
-let aiPlayerLastPlaybackError = "";
-
-function aiPlayerCurrentSongPayload() {
-  const song = currentPlayerActionSong();
-  if (!song) return null;
-  return {
-    id: String(song.id || ""),
-    source: String(song.source || ""),
-    name: String(song.name || ""),
-    artist: String(song.artist || ""),
-    album: String(song.album || ""),
-    duration: Number(song.duration) || 0,
-    extra: normalizeSongExtra(song.extra),
-  };
-}
-
-function aiPlayerStatePayload() {
-  const audio = ap?.audio;
-  const currentIndex = Number(ap?.list?.index);
-  return {
-    client_id: AI_PLAYER_CLIENT_ID,
-    ready: Boolean(audio && ap?.list && Array.isArray(ap.list.audios)),
-    playing: Boolean(audio && !audio.paused && !audio.ended),
-    current: aiPlayerCurrentSongPayload(),
-    position: Math.max(0, Number(audio?.currentTime) || 0),
-    duration: Math.max(0, Number(audio?.duration) || 0),
-    volume: Math.min(1, Math.max(0, Number(audio?.volume) || 0)),
-    playback_rate: Number(audio?.playbackRate) || 1,
-    queue_length: ap?.list?.audios?.length || 0,
-    queue_index: Number.isInteger(currentIndex)
-      ? currentIndex
-      : ap?.list?.audios?.length
-        ? 0
-        : -1,
-    page_visible: document.visibilityState !== "hidden",
-    last_error: aiPlayerLastPlaybackError,
-  };
-}
-
-async function publishAIPlayerState() {
-  if (aiPlayerStatePublishing) return;
-  aiPlayerStatePublishing = true;
-  try {
-    await fetch(`${AI_PLAYER_PATH}/state`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Requested-With": "XMLHttpRequest",
-      },
-      body: JSON.stringify(aiPlayerStatePayload()),
-      cache: "no-store",
-    });
-  } catch (_) {
-    // The event stream will reconnect automatically when the server returns.
-  } finally {
-    aiPlayerStatePublishing = false;
-  }
-}
-
-function requestAIPlayerPlayback() {
-  if (!ap?.list?.audios?.length || !ap.audio) return false;
-  aiPlayerLastPlaybackError = "";
-  resumeVideoGenAudioRouting();
-  try {
-    const result = ap.play();
-    if (result && typeof result.catch === "function") {
-      result.catch((error) => {
-        aiPlayerLastPlaybackError =
-          error?.message || "browser blocked or failed playback";
-        void publishAIPlayerState();
-      });
-    }
-    return true;
-  } catch (error) {
-    aiPlayerLastPlaybackError = error?.message || "playback failed";
-    return false;
-  }
-}
-
-function playAIPlayerSong(song) {
-  if (!ap?.list || !ap.audio || !song?.id || !song?.source) return false;
-  const normalizedSong = {
-    ...song,
-    id: String(song.id),
-    source: String(song.source),
-    name: String(song.name || ""),
-    artist: String(song.artist || ""),
-    album: String(song.album || ""),
-    duration: Number(song.duration) || 0,
-    extra: serializeSongExtra(song.extra),
-  };
-
-  let index = ap.list.audios.findIndex(
-    (audio) =>
-      String(audio.original_id || audio.custom_id || "") === normalizedSong.id &&
-      String(audio.original_source || audio.source || "") ===
-        normalizedSong.source,
-  );
-  if (index < 0) {
-    ap.list.add([playbackEntryFromSong(normalizedSong)]);
-    index = ap.list.audios.findIndex(
-      (audio) =>
-        String(audio.original_id || audio.custom_id || "") ===
-          normalizedSong.id &&
-        String(audio.original_source || audio.source || "") ===
-          normalizedSong.source,
-    );
-  }
-  if (index < 0) return false;
-
-  ap.list.switch(index);
-  currentPlayingId = normalizedSong.id;
-  highlightCard(currentPlayingId);
-  syncAllPlayButtons();
-  return requestAIPlayerPlayback();
-}
-
-window.musicDlAIPlayerControl = function (command) {
-  const action = String(command?.action || "").toLowerCase();
-  switch (action) {
-    case "play_song":
-      return playAIPlayerSong(command.song);
-    case "play":
-      return requestAIPlayerPlayback();
-    case "pause":
-      if (!ap?.audio) return false;
-      ap.pause();
-      return true;
-    case "toggle":
-      if (!ap?.audio || !ap.list?.audios?.length) return false;
-      if (ap.audio.paused) return requestAIPlayerPlayback();
-      ap.pause();
-      return true;
-    case "stop":
-      if (!ap?.audio) return false;
-      ap.pause();
-      seekCurrentTrack(0);
-      currentPlayingId = null;
-      window.currentPlayingId = null;
-      highlightCard(null);
-      syncAllPlayButtons();
-      return true;
-    case "next":
-      switchTrackByOffset(1);
-      return Boolean(ap?.list?.audios?.length);
-    case "previous":
-      switchTrackByOffset(-1);
-      return Boolean(ap?.list?.audios?.length);
-    case "seek":
-      if (!ap?.audio || !Number.isFinite(Number(command.position))) {
-        return false;
-      }
-      seekCurrentTrack(Number(command.position));
-      return true;
-    case "volume": {
-      const volume = Number(command.volume);
-      if (!ap?.audio || !Number.isFinite(volume)) return false;
-      const normalized = Math.min(1, Math.max(0, volume));
-      if (typeof ap.volume === "function") ap.volume(normalized, true);
-      else ap.audio.volume = normalized;
-      return true;
-    }
-    case "rate": {
-      const rate = Number(command.rate);
-      if (!PLAYER_SPEEDS.includes(rate)) return false;
-      setPlayerPlaybackRate(rate);
-      return true;
-    }
-    default:
-      return false;
-  }
-};
-
-function handleAIPlayerCommand(command) {
-  const target = String(command?.client_id || "").trim();
-  if (target && target !== AI_PLAYER_CLIENT_ID) return;
-  const handled = window.musicDlAIPlayerControl(command);
-  if (!handled) {
-    aiPlayerLastPlaybackError =
-      `player command failed: ${String(command?.action || "unknown")}`;
-  }
-  void publishAIPlayerState();
-  setTimeout(publishAIPlayerState, 350);
-}
-
-function connectAIPlayerEvents() {
-  if (aiPlayerEventSource || typeof EventSource === "undefined") return;
-  const source = new EventSource(
-    `${AI_PLAYER_PATH}/events?client_id=${encodeURIComponent(AI_PLAYER_CLIENT_ID)}`,
-  );
-  aiPlayerEventSource = source;
-  source.addEventListener("player_command", (event) => {
-    try {
-      handleAIPlayerCommand(JSON.parse(event.data));
-    } catch (error) {
-      aiPlayerLastPlaybackError =
-        error?.message || "invalid player command payload";
-      void publishAIPlayerState();
-    }
-  });
-}
-
-if (ap?.audio) {
-  for (const eventName of [
-    "play",
-    "playing",
-    "pause",
-    "ended",
-    "seeked",
-    "volumechange",
-    "ratechange",
-    "loadedmetadata",
-  ]) {
-    ap.audio.addEventListener(eventName, () => {
-      if (eventName === "playing") aiPlayerLastPlaybackError = "";
-      setTimeout(publishAIPlayerState, 120);
-    });
-  }
-  ap.audio.addEventListener("error", () => {
-    aiPlayerLastPlaybackError = "audio stream failed to load or play";
-    void publishAIPlayerState();
-  });
-}
-
-setInterval(publishAIPlayerState, 2000);
-connectAIPlayerEvents();
-publishAIPlayerState();
-
-setInterval(syncPlayerTrackControls, 500);
-setInterval(syncTaskbarPlaybackState, 500);
-syncPlayerTrackControls();
-syncTaskbarPlaybackState();
-
-const PLAYER_SPEEDS = Object.freeze([
-  0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3,
-]);
-let playerSpeed = (() => {
-  const saved = Number(localStorage.getItem("musicdl:playbackRate"));
-  return PLAYER_SPEEDS.includes(saved) ? saved : 1;
-})();
-
-window.PLAYER_SPEEDS = PLAYER_SPEEDS;
-window.playerSpeed = playerSpeed;
-window.getPlayerPlaybackRate = () => playerSpeed;
-
-function applyPlayerPlaybackRate(rate) {
-  if (!ap?.audio) return;
-  const normalized = Number(rate) || 1;
-  ap.audio.playbackRate = normalized;
-  if (window.VideoGen?.isLocalAudio && window.VideoGen?.localAudio) {
-    window.VideoGen.localAudio.playbackRate = normalized;
-  }
-  const btn = document.querySelector(".player-speed-btn");
-  if (btn) btn.textContent = `${normalized}x`;
-  document.querySelectorAll(".player-speed-option").forEach((option) => {
-    option.classList.toggle(
-      "active",
-      Number(option.dataset.rate) === normalized,
-    );
-  });
-  const vgBtn = document.getElementById("vg-speed-button");
-  if (vgBtn) vgBtn.textContent = `${normalized}x`;
-  document.querySelectorAll("#vg-speed-menu .vg-speed-option").forEach(
-    (option) => {
-      option.classList.toggle(
-        "active",
-        Number(option.dataset.rate) === normalized,
-      );
-    },
-  );
-  syncMediaSession();
-}
-
-function setPlayerPlaybackRate(rate) {
-  const normalized = Number(rate);
-  if (!PLAYER_SPEEDS.includes(normalized)) return;
-  playerSpeed = normalized;
-  window.playerSpeed = normalized;
-  localStorage.setItem("musicdl:playbackRate", String(normalized));
-  if (window.VideoGen) {
-    window.VideoGen.playbackRate = normalized;
-  }
-  applyPlayerPlaybackRate(normalized);
-}
-
-window.setPlayerPlaybackRate = setPlayerPlaybackRate;
-window.applyPlayerPlaybackRate = applyPlayerPlaybackRate;
-
-(function initPlayerSpeedControl() {
-  let attempts = 0;
-
-  function tryInject() {
-    attempts++;
-    if (attempts > 30) return;
-
-    const apFixed = document.querySelector(".aplayer.aplayer-fixed");
-    if (!apFixed) {
-      setTimeout(tryInject, 100);
-      return;
-    }
-    if (document.querySelector(".player-speed-wrap")) return;
-
-    const wrap = document.createElement("div");
-    wrap.className = "player-speed-wrap";
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "player-speed-btn";
-    button.textContent = `${playerSpeed}x`;
-    button.title = "播放速度";
-    button.setAttribute("aria-label", "播放速度");
-    button.setAttribute("aria-haspopup", "true");
-    button.setAttribute("aria-expanded", "false");
-
-    const menu = document.createElement("div");
-    menu.className = "player-speed-menu";
-    menu.hidden = true;
-    menu.innerHTML = PLAYER_SPEEDS.map(
-      (rate) =>
-        `<button type="button" class="player-speed-option${
-          rate === playerSpeed ? " active" : ""
-        }" data-rate="${rate}">${rate}x</button>`,
-    ).join("");
-
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const nextHidden = !menu.hidden;
-      menu.hidden = nextHidden;
-      button.setAttribute("aria-expanded", String(!nextHidden));
-    });
-
-    menu.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const option = event.target.closest(".player-speed-option");
-      if (!option) return;
-      setPlayerPlaybackRate(Number(option.dataset.rate));
-      menu.hidden = true;
-      button.setAttribute("aria-expanded", "false");
-    });
-
-    document.addEventListener("click", (event) => {
-      if (!wrap.contains(event.target)) {
-        menu.hidden = true;
-        button.setAttribute("aria-expanded", "false");
-      }
-    });
-
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !menu.hidden) {
-        menu.hidden = true;
-        button.setAttribute("aria-expanded", "false");
-      }
-    });
-
-    wrap.append(button, menu);
-    apFixed.appendChild(wrap);
-    applyPlayerPlaybackRate(playerSpeed);
-    syncPlayerTrackControls();
-  }
-
-  setTimeout(tryInject, 100);
-})();
-
-applyPlayerPlaybackRate(playerSpeed);
-
-setupMediaSession();
-if (ap?.audio) {
-  ap.audio.addEventListener("timeupdate", () => KaraokeLyrics.update());
-  ap.audio.addEventListener("seeked", () => KaraokeLyrics.update());
-  ap.audio.addEventListener("loadedmetadata", () => {
-    KaraokeLyrics.load(getCurrentAPlayerAudio());
-    applyPlayerPlaybackRate(playerSpeed);
-  });
-  ap.audio.addEventListener("emptied", () => {
-    applyPlayerPlaybackRate(playerSpeed);
-  });
-  ap.audio.addEventListener("play", () =>
-    KaraokeLyrics.handlePlayStateChange(true),
-  );
-  ap.audio.addEventListener("pause", () =>
-    KaraokeLyrics.handlePlayStateChange(false),
-  );
-  ap.audio.addEventListener("ended", () =>
-    KaraokeLyrics.handlePlayStateChange(false),
-  );
-}
-
-// === 播放模式切换按钮 ===
-(function initPlayModeToggle() {
-  const MODES = [
-    { order: "list", loop: "all", cls: "mode-order", label: "顺序播放" },
-    { order: "random", loop: "all", cls: "mode-random", label: "随机播放" },
-    { order: "list", loop: "one", cls: "mode-one", label: "单曲循环" },
-  ];
-
-  let modeIndex = parseInt(localStorage.getItem("musicdl:playmode") || "0", 10);
-  if (![0, 1, 2].includes(modeIndex)) modeIndex = 0;
-
-  function applyMode(idx) {
-    const m = MODES[idx];
-    if (ap && ap.options) {
-      ap.options.order = m.order;
-      ap.options.loop = m.loop;
-    }
-  }
-
-  let attempts = 0;
-  function tryInject() {
-    attempts++;
-    // 尝试注入，最多重试 30 次 (约 3 秒)
-    if (attempts > 30) return;
-
-    const apFixed = document.querySelector(".aplayer.aplayer-fixed");
-    if (!apFixed) {
-      setTimeout(tryInject, 100);
-      return;
-    }
-
-    if (document.querySelector(".playmode-toggle-btn")) return;
-
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "playmode-toggle-btn";
-
-    function refresh() {
-      const m = MODES[modeIndex];
-      const icons = {
-        "mode-order": "fa-list-ol",
-        "mode-random": "fa-shuffle",
-        "mode-one": "fa-repeat",
-      };
-      btn.innerHTML = `<i class="fa-solid ${icons[m.cls]}" aria-hidden="true"></i>`;
-      btn.title = m.label;
-      btn.setAttribute("aria-label", m.label);
-    }
-
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      modeIndex = (modeIndex + 1) % MODES.length;
-      localStorage.setItem("musicdl:playmode", modeIndex);
-      applyMode(modeIndex);
-      refresh();
-    });
-
-    apFixed.appendChild(btn);
-    refresh();
-    if (modeIndex !== 0) applyMode(modeIndex);
-    syncPlayerTrackControls();
-  }
-
-  // 等 APlayer 渲染出来后再注入
-  setTimeout(tryInject, 100);
-})();
-
-setTimeout(() => {
-  const apPic = document.querySelector(".aplayer-pic");
-  if (apPic) {
-    apPic.style.cursor = "pointer";
-    apPic.title = "点击打开详情/生成视频";
-
-    apPic.addEventListener(
-      "click",
-      (e) => {
-        if (
-          e.target.closest(".aplayer-button") ||
-          e.target.closest(".aplayer-play")
-        ) {
-          return;
-        }
-        e.stopPropagation();
-        e.preventDefault();
-
-        const idx = ap.list.index;
-        const audio = ap.list.audios[idx];
-
-        if (audio && audio.custom_id && window.VideoGen) {
-          window.VideoGen.open({
-            id: audio.custom_id,
-            source: audio.source || "netease",
-            name: audio.name,
-            artist: audio.artist,
-            album: audio.album || "",
-            cover: audio.cover,
-            duration: parseInt(audio.duration) || 0,
-            extra: audio.extra || "",
-          });
-        }
-      },
-      true,
-    );
-  }
-}, 800);
-
-if (ap && typeof ap.on === "function") {
-  ap.on("listswitch", (e) => {
-    const index = e.index;
-    applyPlayerPlaybackRate(playerSpeed);
-    const newAudio = ap.list.audios[index];
-    const playbackCardID = getPlaybackCardID(newAudio);
-    if (playbackCardID) {
-      currentPlayingId = playbackCardID;
-      window.currentPlayingId = currentPlayingId;
-      highlightCard(currentPlayingId);
-      syncAllPlayButtons();
-
-      const vgModal = document.getElementById("vg-modal");
-      if (vgModal && vgModal.classList.contains("active") && window.VideoGen) {
-        if (
-          !window.VideoGen.data ||
-          window.VideoGen.data.id !== newAudio.custom_id
-        ) {
-          window.VideoGen.open({
-            id: newAudio.custom_id,
-            source: newAudio.source || "netease",
-            name: newAudio.name,
-            artist: newAudio.artist,
-            album: newAudio.album || "",
-            cover: newAudio.cover,
-            duration: parseInt(newAudio.duration) || 0,
-            extra: newAudio.extra || "",
-          });
-        }
-      }
-    }
-    if (
-      newAudio &&
-      newAudio.source !== "local" &&
-      newAudio.source !== "local-file"
-    ) {
-      if (!restoringPlaybackSession) scheduleAutoCache(newAudio);
-    }
-    syncMediaSession(newAudio || getCurrentAPlayerAudio());
-    scheduleMediaSessionSync(newAudio || getCurrentAPlayerAudio(), 180);
-    KaraokeLyrics.load(newAudio || getCurrentAPlayerAudio());
-  });
-
-  ap.on("play", () => {
-    resumeVideoGenAudioRouting();
-    applyPlayerPlaybackRate(playerSpeed);
-    syncTaskbarPlaybackState();
-    const idx = ap?.list?.index;
-    const audio = typeof idx === "number" ? ap.list.audios[idx] : null;
-    rememberPlaybackHistory(audio);
-    const playbackCardID = getPlaybackCardID(audio);
-    if (playbackCardID) {
-      currentPlayingId = playbackCardID;
-      window.currentPlayingId = currentPlayingId;
-      highlightCard(currentPlayingId);
-    }
-    syncAllPlayButtons();
-    syncMediaSession(audio || getCurrentAPlayerAudio());
-    scheduleMediaSessionSync(audio || getCurrentAPlayerAudio(), 180);
-    KaraokeLyrics.load(audio || getCurrentAPlayerAudio());
-
-    if (audio && audio.source !== "local" && audio.source !== "local-file") {
-      scheduleAutoCache(audio);
-    }
-
-    if (window.VideoGen && window.VideoGen.updatePlayBtnState) {
-      window.VideoGen.updatePlayBtnState(true);
-    }
-  });
-
-  ap.on("pause", () => {
-    syncTaskbarPlaybackState();
-    syncAllPlayButtons();
-    syncMediaSession();
-    if (window.VideoGen && window.VideoGen.updatePlayBtnState) {
-      window.VideoGen.updatePlayBtnState(false);
-    }
-  });
-
-  ap.on("ended", () => {
-    syncTaskbarPlaybackState();
-    currentPlayingId = null;
-    window.currentPlayingId = null;
-    highlightCard(null);
-    syncAllPlayButtons();
-    scheduleMediaSessionSync(getCurrentAPlayerAudio(), 180);
-    KaraokeLyrics.hide();
-  });
-}
-
-function highlightCard(targetId) {
-  document
-    .querySelectorAll(".song-card")
-    .forEach((c) => c.classList.remove("playing-active"));
-  const target = findSongCardById(targetId);
-  target?.classList.add("playing-active");
-  syncCurrentTrackLocator();
-}
-
-function setPlayButtonState(card, isPlaying) {
-  if (!card) return;
-  const btn = card.querySelector(".btn-play");
-  if (!btn) return;
-  const icon = btn.querySelector("i");
-  if (!icon) return;
-  if (
-    btn.classList.contains("is-stop") === isPlaying &&
-    icon.classList.contains(isPlaying ? "fa-stop" : "fa-play")
-  ) {
-    return;
-  }
-
-  icon.classList.remove("fa-play", "fa-stop");
-  icon.classList.add(isPlaying ? "fa-stop" : "fa-play");
-  btn.title = isPlaying ? "停止" : "播放";
-  btn.setAttribute("aria-label", isPlaying ? "停止" : "播放");
-  btn.classList.toggle("is-stop", isPlaying);
-}
-
-function syncAllPlayButtons() {
-  const isActuallyPlaying = ap?.audio && !ap.audio.paused;
-  document.querySelectorAll(".song-card").forEach((card) => {
-    const id = card.dataset.id;
-    const active =
-      isActuallyPlaying && currentPlayingId && id === currentPlayingId;
-    setPlayButtonState(card, active);
-  });
 }
 
 function formatDuration(seconds) {
@@ -8581,7 +4924,6 @@ function syncLocalSongActionButtons(card, song) {
 
 function updateCardWithSong(card, song, options = {}) {
   if (!card || !song) return;
-  const oldId = card.dataset.id;
   const shouldInspect = options.inspect !== false;
   delete card.dataset.previewOnly;
 
@@ -8633,22 +4975,6 @@ function updateCardWithSong(card, song, options = {}) {
     }
     imgEl.src = song.cover || "https://via.placeholder.com/150?text=Music";
     imgEl.alt = song.name || "";
-
-    coverWrap.onclick = (e) => {
-      e.stopPropagation();
-      if (window.VideoGen) {
-        window.VideoGen.open({
-          id: card.dataset.id,
-          source: card.dataset.source,
-          name: card.dataset.name,
-          artist: card.dataset.artist,
-          album: card.dataset.album || "",
-          cover: imgEl.src,
-          duration: parseInt(card.dataset.duration) || 0,
-          extra: card.dataset.extra || "",
-        });
-      }
-    };
   }
 
   const dl = card.querySelector(".btn-download");
@@ -8709,55 +5035,8 @@ function updateCardWithSong(card, song, options = {}) {
     bitrateTag.innerHTML = '<i class="fa fa-circle-notch fa-spin"></i>';
   }
 
-  if (currentPlayingId === oldId) {
-    currentPlayingId = song.id;
-  }
-
-  syncAllPlayButtons();
   if (shouldInspect) {
     queueInspectSong(card);
-  }
-  syncSongToAPlayer(oldId, song);
-  if (currentPlayingId === song.id) {
-    syncMediaSession();
-  }
-}
-
-function syncSongToAPlayer(oldId, newSong) {
-  if (!ap || !ap.list || !ap.list.audios) return;
-  const index = ap.list.audios.findIndex(
-    (a) => a.custom_id === oldId || a.original_id === oldId,
-  );
-  if (index !== -1) {
-    const audio = ap.list.audios[index];
-    audio.name = newSong.name;
-    audio.artist = newSong.artist;
-    audio.album = newSong.album || "";
-    audio.cover = newSong.cover;
-    audio.url = buildStreamURL(
-      newSong.id,
-      newSong.source,
-      newSong.name,
-      newSong.artist,
-      newSong.album || "",
-      newSong.cover || "",
-      serializeSongExtra(newSong.extra),
-    );
-    const lyricURLs = lyricURLsForPlayback(newSong);
-    audio.lrc = lyricURLs.line;
-    audio.raw_lrc = lyricURLs.auto;
-    audio.custom_id = newSong.id;
-    audio.original_id = newSong.id;
-    audio.source = newSong.source;
-    audio.duration = newSong.duration || 0;
-    audio.extra = serializeSongExtra(newSong.extra);
-
-    if (ap.list.index === index) {
-      ap.list.switch(index);
-      if (ap.audio.paused) {
-        ap.play();
-      }
-    }
   }
 }
 
@@ -8794,135 +5073,6 @@ function switchSource(btn, options = {}) {
       btn.style.opacity = "1";
     });
 }
-
-let playbackExpansionController = null;
-
-function cancelPlaybackExpansion() {
-  playbackExpansionController?.abort();
-  playbackExpansionController = null;
-}
-
-if (ap?.on) ap.on("listclear", cancelPlaybackExpansion);
-
-function playbackEntryFromSong(song) {
-  const localMatch = localMusicMatchCache[song.id];
-  const playback = localMatch?.id ? {...song, id:localMatch.id, source:"local", name:localMatch.name || song.name, artist:localMatch.artist || song.artist} : song;
-  const lyrics = lyricURLsForPlayback(playback);
-  return {
-    name:playback.name, artist:playback.artist, album:playback.album || "",
-    url:buildStreamURL(playback.id, playback.source, playback.name, playback.artist, playback.album || "", playback.cover || "", playback.extra || ""),
-    cover:song.cover || "", lrc:lyrics.line, raw_lrc:lyrics.auto, theme:"#10b981",
-    custom_id:playback.id, original_id:song.id, original_source:song.source,
-    source:playback.source, duration:playback.duration || 0, extra:playback.extra || "",
-  };
-}
-
-// Keep the selected song playing while extending its queue across result pages.
-// A new playlist aborts this request so delayed pages cannot mix into it.
-async function expandPlaybackQueue({local, url, totalPages}) {
-  cancelPlaybackExpansion();
-  if (!local && totalPages <= 1) return;
-  const controller = new AbortController();
-  playbackExpansionController = controller;
-  const key = song => JSON.stringify([song.original_source || song.source, String(song.original_id || song.custom_id)]);
-  const seen = new Set(ap.list.audios.map(key));
-  const append = songs => {
-    if (controller.signal.aborted || playbackExpansionController !== controller) return;
-    const additions = [];
-    for (const song of songs) {
-      const entry = playbackEntryFromSong(song);
-      const identity = key(entry);
-      if (!seen.has(identity)) { seen.add(identity); additions.push(entry); }
-    }
-    if (additions.length) ap.list.add(additions);
-  };
-  try {
-    showToast("正在补齐播放列表", "其他分页将自动加入，随机播放覆盖加载后的完整列表。", "info", 2500);
-    if (local) {
-      let offset = 0;
-      while (!controller.signal.aborted) {
-        const response = await fetch(`${API_ROOT}/local_music?offset=${offset}&limit=500`, {signal:controller.signal, cache:"no-store"});
-        const data = await response.json();
-        if (!response.ok || data.error) throw new Error(data.error || "读取本地音乐失败");
-        if (data.offset !== offset) throw new Error("服务器返回的分页起点不一致，请重启应用后重试");
-        const tracks = data.tracks || [];
-        append(tracks.map(localMusicSongFromTrack));
-        offset += tracks.length;
-        if (!data.has_more) break;
-        if (!tracks.length) throw new Error("本地音乐分页未返回后续曲目");
-      }
-    } else {
-      const target = new URL(url);
-      target.searchParams.set("page_size", "500");
-      let pages = 1;
-      for (let page = 1; page <= pages; page++) {
-        target.searchParams.set("page", String(page));
-        const response = await fetch(target.toString(), {signal:controller.signal, headers:{"X-Requested-With":"XMLHttpRequest"}});
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const doc = new DOMParser().parseFromString(await response.text(), "text/html");
-        const cards = Array.from(doc.querySelectorAll(".song-card"));
-        if (!cards.length) throw new Error("后续分页未返回歌曲");
-        append(cards.map(songFromCard).filter(Boolean));
-        pages = parsePositiveInt(doc.querySelector(".pagination-bar")?.dataset.totalPages, 1);
-      }
-    }
-    if (!controller.signal.aborted) showToast("播放列表已补齐", `共 ${ap.list.audios.length} 首，随机播放不再局限当前页。`, "success", 3000);
-  } catch (error) {
-    if (!controller.signal.aborted) showToast("播放列表未加载完整", `${error.message}，已加载歌曲仍可播放；重新点击歌曲可重试。`, "error");
-  } finally {
-    if (playbackExpansionController === controller) playbackExpansionController = null;
-  }
-}
-
-function playAllAndJumpTo(btn) {
-  const currentCard = btn.closest(".song-card");
-  const allCards = Array.from(document.querySelectorAll(".song-card"));
-  const clickedIndex = allCards.indexOf(currentCard);
-
-  if (clickedIndex === -1) return;
-
-  const clickedId = currentCard.dataset.id;
-  const isActuallyPlaying = ap?.audio && !ap.audio.paused;
-
-  if (currentPlayingId && currentPlayingId === clickedId && isActuallyPlaying) {
-    ap.pause();
-    try {
-      ap.seek(0);
-    } catch (e) {}
-    currentPlayingId = null;
-    highlightCard(null);
-    syncAllPlayButtons();
-    syncMediaSession();
-    return;
-  }
-
-  ap.list.clear();
-  const playlist = [];
-
-  allCards.forEach((card) => {
-    const song = songFromCard(card);
-    if (song) playlist.push(playbackEntryFromSong(song));
-  });
-
-  ap.list.add(playlist);
-  ap.list.switch(playlist.findIndex(song => song.original_id === clickedId && song.original_source === currentCard.dataset.source));
-  ap.play();
-  void expandPlaybackQueue({local: isLocalMusicPageActive(), url: window.location.href, totalPages: getActivePaginationState()?.totalPages || 1});
-
-  currentPlayingId = clickedId;
-  highlightCard(currentPlayingId);
-  syncAllPlayButtons();
-}
-
-window.playAllAndJumpToId = function (songId) {
-  const targetCard = document.querySelector(`.song-card[data-id="${songId}"]`);
-  if (targetCard) {
-    const btn = targetCard.querySelector(".btn-play");
-    if (btn) {
-      playAllAndJumpTo(btn);
-    }
-  }
-};
 
 let isBatchMode = false;
 let autoSwitchInvalidTimer = 0;
@@ -9198,8 +5348,6 @@ function getSelectedSongs() {
     if (card) {
       const song = songFromCard(card);
       if (!song) return;
-      const lyricURLs = lyricURLsForSong(song);
-
       songs.push({
         id: song.id,
         source: song.source,
@@ -9217,9 +5365,6 @@ function getSelectedSongs() {
           song.extra || "",
         ),
         cover: song.cover,
-        lrc: lyricURLs.line,
-        raw_lrc: lyricURLs.auto,
-        theme: "#10b981",
       });
     }
   });
@@ -9331,7 +5476,6 @@ async function batchCopyDownloadUrls() {
   }
 }
 
-// Use an in-page dialog: macOS WebView does not provide window.confirm panels.
 function confirmBatchDownload(count) {
   return confirmAppAction({
     title: "确认批量下载",
@@ -9434,19 +5578,6 @@ function confirmLocalMusicDeletion(songs) {
   return confirm(`再次确认：确定永久删除 ${scope} 吗？`);
 }
 
-function stopDeletedLocalMusicPlayback(deletedIds) {
-  if (!currentPlayingId || !deletedIds || !deletedIds.has(currentPlayingId))
-    return;
-  try {
-    ap?.pause();
-    ap?.list?.clear();
-  } catch (_) {}
-  currentPlayingId = null;
-  highlightCard(null);
-  syncAllPlayButtons();
-  syncMediaSession();
-}
-
 async function deleteLocalMusicFromButton(btn) {
   const card = btn?.closest(".song-card");
   const song = songFromCard(card);
@@ -9459,7 +5590,6 @@ async function deleteLocalMusicFromButton(btn) {
 
   try {
     await deleteLocalMusic(song.id);
-    stopDeletedLocalMusicPlayback(new Set([song.id]));
     await refreshLocalMusicPageAfterMutation();
   } catch (error) {
     alert(error.message || "删除失败");
@@ -9491,14 +5621,12 @@ async function batchDeleteLocalMusic() {
 
   let success = 0;
   const failures = [];
-  const deletedIds = new Set();
 
   try {
     for (const song of songs) {
       try {
         await deleteLocalMusic(song.id);
         success++;
-        deletedIds.add(song.id);
       } catch (error) {
         failures.push({
           song,
@@ -9506,8 +5634,6 @@ async function batchDeleteLocalMusic() {
         });
       }
     }
-
-    stopDeletedLocalMusicPlayback(deletedIds);
 
     let message = `批量删除完成，成功 ${success}/${songs.length}`;
     message += buildBatchFailureMessage(failures, "失败");
@@ -9906,15 +6032,6 @@ async function addLocalMusicToCollection(trackId, btn) {
       btn.innerHTML = '<i class="fa-solid fa-plus"></i> 添加';
     }
     alert(error.message || "添加失败");
-  }
-}
-
-function playAllSongs() {
-  const firstPlayBtn = document.querySelector(".song-card .btn-play");
-  if (firstPlayBtn) {
-    playAllAndJumpTo(firstPlayBtn);
-  } else {
-    alert("列表为空，无法播放");
   }
 }
 
@@ -10415,232 +6532,3 @@ function removeSongFromCollection(btn, colId, originalSongId, originalSource) {
     });
 }
 
-// Playback sessions store song metadata, never expiring stream URLs or lyrics.
-// IndexedDB accommodates large libraries without localStorage's small quota.
-const PLAYBACK_SESSION_DB = "musicdl-playback";
-const PLAYBACK_POSITION_KEY = "musicdl:playback-position";
-let playbackSessionDBPromise = null;
-let restoringPlaybackSession = false;
-let playbackSessionRevision = 0;
-let playbackSessionSavePending = false;
-let playbackSessionStorageWarning = false;
-
-function playbackSessionDB() {
-  if (!playbackSessionDBPromise) {
-    playbackSessionDBPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(PLAYBACK_SESSION_DB, 1);
-      request.onupgradeneeded = () => request.result.createObjectStore("session");
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-      request.onblocked = () => reject(new Error("播放清单存储被其他窗口占用"));
-    });
-  }
-  return playbackSessionDBPromise;
-}
-
-async function readPlaybackSession() {
-  const db = await playbackSessionDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction("session", "readonly");
-    const request = transaction.objectStore("session").get("current");
-    transaction.oncomplete = () => resolve(request.result);
-    transaction.onerror = transaction.onabort = () => reject(transaction.error || new Error("读取播放清单失败"));
-  });
-}
-
-async function writePlaybackSession(session) {
-  const db = await playbackSessionDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction("session", "readwrite");
-    transaction.objectStore("session").put(session, "current");
-    transaction.oncomplete = resolve;
-    transaction.onerror = transaction.onabort = () => reject(transaction.error || new Error("保存播放清单失败"));
-  });
-}
-
-function reportPlaybackSessionError(error) {
-  console.warn("[music-dl] playback session storage:", error);
-  if (playbackSessionStorageWarning) return;
-  playbackSessionStorageWarning = true;
-  showToast("播放清单保存不可用", "当前播放不受影响，但本次清单可能无法在重启后恢复。", "warning", 6000);
-}
-
-function playbackSessionSong(audio) {
-  return {
-    id:String(audio.custom_id || ""), source:String(audio.source || ""),
-    name:audio.name || "", artist:audio.artist || "", album:audio.album || "",
-    cover:audio.cover || "", duration:Number(audio.duration) || 0,
-    extra:serializeSongExtra(audio.extra),
-    original_id:audio.original_id || audio.custom_id,
-    original_source:audio.original_source || audio.source,
-  };
-}
-
-function savePlaybackPosition() {
-  if (restoringPlaybackSession || !ap?.list) return;
-  const audio = ap.list.audios[ap.list.index];
-  try {
-    if (!audio) { localStorage.removeItem(PLAYBACK_POSITION_KEY); return; }
-    localStorage.setItem(PLAYBACK_POSITION_KEY, JSON.stringify({
-      id:String(audio.custom_id), source:audio.source,
-      position:Number(ap.audio?.currentTime) || 0,
-    }));
-  } catch (error) { reportPlaybackSessionError(error); }
-}
-
-function schedulePlaybackSessionSave() {
-  if (restoringPlaybackSession) return;
-  playbackSessionRevision++;
-  if (playbackSessionSavePending) return;
-  playbackSessionSavePending = true;
-  // APlayer fires list events before completing its mutation. Snapshot afterward.
-  queueMicrotask(() => {
-    playbackSessionSavePending = false;
-    const songs = (ap?.list?.audios || []).map(playbackSessionSong).filter(song => song.id && song.source);
-    savePlaybackPosition();
-    void writePlaybackSession({version:1, songs}).catch(reportPlaybackSessionError);
-  });
-}
-
-async function restorePlaybackSession() {
-  if (!ap?.list) return;
-  const revision = playbackSessionRevision;
-  try {
-    const session = await readPlaybackSession();
-    // Never replace a playlist selected while the asynchronous read was pending.
-    if (revision !== playbackSessionRevision || ap.list.audios.length) return;
-    if (session?.version !== 1 || !Array.isArray(session.songs)) return;
-    const songs = session.songs.filter(song => song && typeof song.id === "string" && song.id && typeof song.source === "string" && song.source);
-    if (!songs.length) return;
-    let saved = {};
-    try { saved = JSON.parse(localStorage.getItem(PLAYBACK_POSITION_KEY) || "{}"); } catch (_) {}
-    if (!saved || typeof saved !== "object") saved = {};
-    const playlist = songs.map(song => ({...playbackEntryFromSong(song), original_id:song.original_id || song.id, original_source:song.original_source || song.source}));
-    const index = Math.max(0, playlist.findIndex(song => song.custom_id === saved.id && song.source === saved.source));
-    const position = Number(saved.position);
-    restoringPlaybackSession = true;
-    try {
-      ap.list.add(playlist);
-      ap.list.switch(index);
-      ap.pause();
-    } finally { restoringPlaybackSession = false; }
-    if (Number.isFinite(position) && position > 0) {
-      const selected = ap.list.audios[index];
-      const seek = () => {
-        if (ap.list.audios[ap.list.index] !== selected) return;
-        const duration = Number(ap.audio.duration);
-        ap.seek(Number.isFinite(duration) && duration > 0 ? Math.min(position, duration) : position);
-      };
-      if (ap.audio.readyState >= 1) seek();
-      else ap.audio.addEventListener("loadedmetadata", seek, {once:true});
-    }
-    syncPlayerTrackControls();
-    showToast("已恢复播放清单", `共 ${playlist.length} 首，点击播放继续。`, "success", 3500);
-  } catch (error) { reportPlaybackSessionError(error); }
-}
-
-if (ap?.on) {
-  for (const event of ["listadd", "listremove", "listclear"]) ap.on(event, schedulePlaybackSessionSave);
-  ap.on("listswitch", () => {
-    if (!restoringPlaybackSession) queueMicrotask(savePlaybackPosition);
-  });
-  let lastPlaybackPositionSave = 0;
-  ap.audio.addEventListener("timeupdate", () => {
-    if (Date.now() - lastPlaybackPositionSave < 5000) return;
-    lastPlaybackPositionSave = Date.now();
-    savePlaybackPosition();
-  });
-  ap.audio.addEventListener("pause", savePlaybackPosition);
-  ap.audio.addEventListener("seeked", savePlaybackPosition);
-  window.addEventListener("pagehide", savePlaybackPosition);
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", restorePlaybackSession, {once:true});
-  else void restorePlaybackSession();
-}
-
-function syncPlaybackQueueControls(player) {
-  const list = player.querySelector(".aplayer-list");
-  const ol = list?.querySelector("ol");
-  if (!list || !ol) return;
-  let toolbar = list.querySelector(".playback-queue-toolbar");
-  if (!toolbar) {
-    toolbar = document.createElement("div");
-    toolbar.className = "playback-queue-toolbar";
-    toolbar.innerHTML = '<span class="playback-queue-count"></span><button type="button" class="btn-pill btn-pill-danger playback-queue-clear"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> 清空清单</button>';
-    toolbar.addEventListener("click", event => event.stopPropagation());
-    toolbar.querySelector("button").addEventListener("click", () => { void clearPlaybackQueue(); });
-    list.prepend(toolbar);
-    // APlayer delegates every list click as a song switch. Intercept removals first.
-    list.addEventListener("click", event => {
-      const button = event.target.closest(".playback-remove-track");
-      if (!button) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      const row = button.closest("li");
-      const index = Array.from(ol.children).indexOf(row);
-      if (index >= 0) void removePlaybackQueueTrack(index);
-    }, true);
-  }
-  const count = ap?.list?.audios?.length || 0;
-  const label = toolbar.querySelector(".playback-queue-count");
-  if (label.textContent !== `播放清单 · ${count} 首`) label.textContent = `播放清单 · ${count} 首`;
-  toolbar.querySelector("button").disabled = !count;
-  if (list.dataset.queueControlsCount === String(count) && (!count || ol.lastElementChild?.querySelector(".playback-remove-track"))) return;
-  list.dataset.queueControlsCount = String(count);
-  for (const row of ol.children) {
-    const titleElement = row.querySelector(".aplayer-list-title");
-    const authorElement = row.querySelector(".aplayer-list-author");
-    if (titleElement && titleElement.title !== titleElement.textContent) {
-      titleElement.title = titleElement.textContent || "";
-    }
-    if (authorElement && authorElement.title !== authorElement.textContent) {
-      authorElement.title = authorElement.textContent || "";
-    }
-    if (row.querySelector(".playback-remove-track")) continue;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "playback-remove-track";
-    const name = row.querySelector(".aplayer-list-title")?.textContent || "此歌曲";
-    button.title = "从播放清单移除";
-    button.setAttribute("aria-label", `从播放清单移除：${name}`);
-    button.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
-    row.appendChild(button);
-  }
-}
-
-function resetEmptyPlaybackQueue() {
-  if (ap?.list?.audios?.length) return;
-  currentPlayingId = null;
-  window.currentPlayingId = null;
-  highlightCard(null);
-  syncAllPlayButtons();
-  KaraokeLyrics.hide();
-  clearMediaSession();
-  document.title = defaultDocumentTitle || "music-dl";
-}
-
-async function savePlaybackQueueNow() {
-  savePlaybackPosition();
-  const songs = (ap?.list?.audios || []).map(playbackSessionSong).filter(song => song.id && song.source);
-  await writePlaybackSession({version:1, songs});
-}
-
-async function clearPlaybackQueue() {
-  if (!ap?.list?.audios?.length) return;
-  if (!(await confirmAppAction({title:"清空播放清单", message:"确定停止播放并清空整个播放清单及已保存的进度？重启后不会恢复此清单。歌曲文件、播放历史和下载队列会保留。", confirmLabel:"清空清单", destructive:true}))) return;
-  ap.list.clear();
-  resetEmptyPlaybackQueue();
-  syncPlayerTrackControls();
-  try {
-    await savePlaybackQueueNow();
-    showToast("播放清单已清空", "重启后不会再恢复此清单。", "success", 3000);
-  } catch (error) { reportPlaybackSessionError(error); }
-}
-
-async function removePlaybackQueueTrack(index) {
-  if (!Number.isInteger(index) || index < 0 || index >= (ap?.list?.audios?.length || 0)) return;
-  ap.list.remove(index);
-  resetEmptyPlaybackQueue();
-  syncPlayerTrackControls();
-  try { await savePlaybackQueueNow(); }
-  catch (error) { reportPlaybackSessionError(error); }
-}

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -402,17 +401,6 @@ func updateAssetPreferenceScore(name string) int {
 	name = strings.ToLower(name)
 	ext := filepath.Ext(name)
 	score := 0
-	targetName := strings.ToLower(filepath.Base(strings.TrimSpace(currentExecutableName())))
-	if strings.Contains(targetName, "desktop") {
-		if strings.Contains(name, "desktop") {
-			score += 35
-		} else {
-			score -= 20
-		}
-	}
-	if strings.Contains(targetName, "rust") && strings.Contains(name, "rust") {
-		score += 15
-	}
 
 	osKey := runtime.GOOS
 	if osKey == "darwin" {
@@ -440,17 +428,6 @@ func updateAssetPreferenceScore(name string) int {
 		score -= 10
 	}
 	return score
-}
-
-func currentExecutableName() string {
-	if hint := strings.TrimSpace(os.Getenv("MUSIC_DL_APP_MODE")); hint != "" {
-		return hint
-	}
-	exe, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	return exe
 }
 
 func isUpdateArchiveExt(ext string) bool {

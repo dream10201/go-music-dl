@@ -6,7 +6,7 @@
             <span class="category-current-badge"><i class="fa-solid fa-ranking-star"></i> 当前榜单</span>
             <div class="category-current-title">{{ .SourceName }}<span class="category-current-sep">·</span>{{ .TopListName }}</div>
             <div class="category-current-subtitle">
-                {{ if .UpdateFrequency }}{{ .UpdateFrequency }} · {{ end }}点击歌曲即可播放或下载，也可以导入到本地歌单。
+                {{ if .UpdateFrequency }}{{ .UpdateFrequency }} · {{ end }}点击歌曲即可下载，也可以导入到本地歌单。
             </div>
         </div>
         <a class="btn-pill btn-pill-switch" href="{{$.Root}}/toplists" onclick="event.preventDefault(); navigateTo(this.href)">

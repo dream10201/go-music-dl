@@ -527,8 +527,6 @@ func NormalizeBasePath(p string) string {
 
 type StartOptions struct {
 	ShouldOpenBrowser bool
-	DisableAuth       bool
-	ListenHost        string
 	BasePath          string
 }
 
@@ -536,29 +534,17 @@ func Start(port string, shouldOpenBrowser bool, basePath string) {
 	StartWithOptions(port, StartOptions{ShouldOpenBrowser: shouldOpenBrowser, BasePath: basePath})
 }
 
-func StartDesktop(port string) {
-	StartWithOptions(port, StartOptions{
-		DisableAuth: true,
-		ListenHost:  "127.0.0.1",
-	})
-}
-
 func StartWithOptions(port string, opts StartOptions) {
 	RoutePrefix = NormalizeBasePath(opts.BasePath)
 	core.CM.Load()
-	if !opts.DisableAuth {
-		settings, err := core.GetWebAuthSettings()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to read web auth settings: %v\n", err)
-		} else if token, tokenErr := prepareSetupToken(settings); tokenErr == nil && token != "" {
-			fmt.Printf("Web setup token: %s\nOpen %s/setup and keep this startup terminal private until setup is complete.\n", token, RoutePrefix)
-		}
+	settings, err := core.GetWebAuthSettings()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to read web auth settings: %v\n", err)
+	} else if token, tokenErr := prepareSetupToken(settings); tokenErr == nil && token != "" {
+		fmt.Printf("Web setup token: %s\nOpen %s/setup and keep this startup terminal private until setup is complete.\n", token, RoutePrefix)
 	}
 	InitDB()
 	defer CloseDB()
-	// Local music is indexed on demand. Scanning the configured download
-	// directory at startup is expensive on Android, especially when the user
-	// points it at a large shared-storage directory.
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
@@ -589,9 +575,6 @@ func StartWithOptions(port string, opts StartOptions) {
 		c.Redirect(http.StatusMovedPermanently, RoutePrefix)
 	})
 
-	videoDir := "data/video_output"
-	os.MkdirAll(videoDir, 0755)
-
 	api := r.Group(RoutePrefix)
 
 	RegisterAIRoutes(api)
@@ -606,22 +589,13 @@ func StartWithOptions(port string, opts StartOptions) {
 	// Static assets embedded at build time.
 	api.GET("/icon.png", func(c *gin.Context) { c.FileFromFS("templates/static/images/icon.png", http.FS(templateFS)) })
 	api.GET("/style.css", func(c *gin.Context) { c.FileFromFS("templates/static/css/style.css", http.FS(templateFS)) })
-	api.GET("/videogen.css", func(c *gin.Context) { c.FileFromFS("templates/static/css/videogen.css", http.FS(templateFS)) })
-	api.GET("/videogen.js", func(c *gin.Context) { c.FileFromFS("templates/static/js/videogen.js", http.FS(templateFS)) })
 	api.GET("/app.js", func(c *gin.Context) { c.FileFromFS("templates/static/js/app.js", http.FS(templateFS)) })
 	vendorAssets, err := embeddedVendorFS()
 	if err != nil {
 		panic(fmt.Sprintf("load embedded vendor assets: %v", err))
 	}
 	api.StaticFS("/vendor", http.FS(vendorAssets))
-	configAPI := bindAuthMiddleware(api, opts)
-	api.Static("/videos", videoDir)
-
-	api.GET("/render", func(c *gin.Context) {
-		c.HTML(200, "render.html", gin.H{
-			"Root": RoutePrefix,
-		})
-	})
+	configAPI := bindAuthMiddleware(api)
 
 	configAPI.HEAD("/cookies", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	configAPI.GET("/cookies", func(c *gin.Context) { c.JSON(200, core.CM.GetAll()) })
@@ -646,11 +620,7 @@ func StartWithOptions(port string, opts StartOptions) {
 			return
 		}
 		if err := core.SaveWebSettings(req); err != nil {
-			status := http.StatusInternalServerError
-			if errors.Is(err, core.ErrInvalidWebSettings) {
-				status = http.StatusBadRequest
-			}
-			c.JSON(status, gin.H{"error": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(200, publicWebSettingsPayload())
@@ -661,7 +631,6 @@ func StartWithOptions(port string, opts StartOptions) {
 	RegisterQRLoginRoutes(configAPI)
 	RegisterCollectionRoutes(api)
 	RegisterLocalMusicRoutes(api)
-	RegisterVideogenRoutes(api, videoDir)
 	RegisterUpdateRoutes(api)
 
 	queue, err := core.OpenDownloadQueue()
@@ -671,7 +640,7 @@ func StartWithOptions(port string, opts StartOptions) {
 	}
 	RegisterDownloadQueueRoutes(api, queue)
 
-	listenAddr := opts.ListenHost + ":" + port
+	listenAddr := ":" + port
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "address already in use") {
@@ -690,11 +659,7 @@ func StartWithOptions(port string, opts StartOptions) {
 		return
 	}
 
-	urlHost := opts.ListenHost
-	if urlHost == "" || urlHost == "0.0.0.0" || urlHost == "::" {
-		urlHost = "localhost"
-	}
-	urlStr := "http://" + urlHost + ":" + port + RoutePrefix
+	urlStr := "http://localhost:" + port + RoutePrefix
 	fmt.Printf("Web started at %s\n", urlStr)
 	if opts.ShouldOpenBrowser {
 		go func() { time.Sleep(500 * time.Millisecond); core.OpenBrowser(urlStr) }()
@@ -708,11 +673,8 @@ func embeddedVendorFS() (fs.FS, error) {
 	return fs.Sub(templateFS, "templates/static/vendor")
 }
 
-func bindAuthMiddleware(api *gin.RouterGroup, opts StartOptions) *gin.RouterGroup {
+func bindAuthMiddleware(api *gin.RouterGroup) *gin.RouterGroup {
 	bindAuthRoutes(api)
-	if opts.DisableAuth {
-		return api
-	}
 	configAPI := api.Group("")
 	configAPI.Use(authRequired(core.GetWebAuthSettings))
 	return configAPI

@@ -115,9 +115,6 @@
                             <i class="fa-solid fa-triangle-exclamation"></i> 重复检测
                         </button>
                         {{ end }}
-                        <button type="button" class="song-list-tool-action is-primary" onclick="closeSongListTools(); playAllSongs()">
-                            <i class="fa-solid fa-play"></i> 播放全部
-                        </button>
                         <button type="button" class="song-list-tool-action" id="btn-batch-toggle" aria-pressed="false" onclick="closeSongListTools(); toggleBatchMode()">
                             <i class="fa-solid fa-list-check"></i> 批量操作
                         </button>
@@ -253,11 +250,6 @@
             </div>
 
             <div class="actions">
-                <button type="button" class="btn-circle btn-play" title="播放"
-                        onclick="playAllAndJumpTo(this)">
-                    <i class="fa-solid fa-play"></i>
-                </button>
-
                 {{ if $isLocalMusicPage }}
                 <button type="button" class="btn-circle btn-fav" title="收藏到自制歌单"
                         onclick="openAddToCollectionModal(this)">

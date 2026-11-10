@@ -2,7 +2,6 @@ package core
 
 import (
 	"encoding/json"
-	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -108,9 +107,6 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if defaults.WebDAVDir != DefaultWebDAVDir {
 		t.Fatalf("default WebDAVDir mismatch: got %q want %q", defaults.WebDAVDir, DefaultWebDAVDir)
 	}
-	if defaults.DisableFloatingLyrics {
-		t.Fatalf("default DisableFloatingLyrics should be false")
-	}
 	if defaults.WebPageSize != DefaultWebPageSize {
 		t.Fatalf("default WebPageSize mismatch: got %d want %d", defaults.WebPageSize, DefaultWebPageSize)
 	}
@@ -132,9 +128,6 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if !defaults.AutoSwitchInvalidSources {
 		t.Fatalf("default AutoSwitchInvalidSources should be true")
 	}
-	if defaults.AutoCacheOnPlay {
-		t.Fatalf("default AutoCacheOnPlay should be false")
-	}
 	if defaults.FilterVersionKeywords || defaults.FilterShortTracks {
 		t.Fatalf("default search filters should be disabled: %#v", defaults)
 	}
@@ -153,32 +146,8 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if defaults.GithubProxyURL != DefaultGithubProxyURL {
 		t.Fatalf("default GithubProxyURL mismatch: got %q want %q", defaults.GithubProxyURL, DefaultGithubProxyURL)
 	}
-	if defaults.VgChangeCover {
-		t.Fatalf("default VgChangeCover should be false")
-	}
-	if defaults.VgChangeAudio {
-		t.Fatalf("default VgChangeAudio should be false")
-	}
-	if defaults.VgChangeLyric {
-		t.Fatalf("default VgChangeLyric should be false")
-	}
-	if defaults.VgExportVideo {
-		t.Fatalf("default VgExportVideo should be false")
-	}
 	if defaults.SodaSignerURL != "" || defaults.SodaSignerToken != "" {
 		t.Fatalf("default soda signer should be empty (fallback to local signer): got %q / %q", defaults.SodaSignerURL, defaults.SodaSignerToken)
-	}
-	if defaults.ShortcutPlayPause != DefaultShortcutPlayPause {
-		t.Fatalf("default ShortcutPlayPause mismatch: got %q want %q", defaults.ShortcutPlayPause, DefaultShortcutPlayPause)
-	}
-	if defaults.ShortcutPrevious != "" || defaults.ShortcutNext != "" || defaults.ShortcutSeekBack != "" || defaults.ShortcutSeekForward != "" {
-		t.Fatalf("default optional playback shortcuts should be empty: %#v", defaults)
-	}
-	if defaults.LyricFontFamily != DefaultLyricFontFamily {
-		t.Fatalf("default LyricFontFamily mismatch: got %q want %q", defaults.LyricFontFamily, DefaultLyricFontFamily)
-	}
-	if defaults.LyricFontSize != DefaultLyricFontSize {
-		t.Fatalf("default LyricFontSize mismatch: got %d want %d", defaults.LyricFontSize, DefaultLyricFontSize)
 	}
 
 	if err := SaveWebSettings(WebSettings{
@@ -192,14 +161,12 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		WebDAVUsername:           "test",
 		WebDAVPassword:           "123456",
 		WebDAVDir:                "music",
-		DisableFloatingLyrics:    true,
 		WebPageSize:              100,
 		CliPageSize:              120,
 		DownloadConcurrency:      5,
 		DownloadTipDuration:      15,
 		AutoCheckUpdate:          false,
 		AutoSwitchInvalidSources: false,
-		AutoCacheOnPlay:          true,
 		FilterVersionKeywords:    true,
 		VersionFilterKeywords:    "Live; Demo",
 		FilterShortTracks:        true,
@@ -207,17 +174,6 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		UpdateRepoURL:            "https://github.com/example/fork",
 		GithubProxyEnabled:       true,
 		GithubProxyURL:           "https://gh-proxy.com/",
-		VgChangeCover:            true,
-		VgChangeAudio:            true,
-		VgChangeLyric:            true,
-		VgExportVideo:            true,
-		ShortcutPlayPause:        DefaultShortcutPlayPause,
-		ShortcutPrevious:         "Ctrl+ArrowLeft",
-		ShortcutNext:             "Ctrl+ArrowRight",
-		ShortcutSeekBack:         "Ctrl+Shift+ArrowLeft",
-		ShortcutSeekForward:      "Ctrl+Shift+ArrowRight",
-		LyricFontFamily:          "pingfang",
-		LyricFontSize:            28,
 	}); err != nil {
 		t.Fatalf("save web settings: %v", err)
 	}
@@ -234,14 +190,12 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		WebDAVUsername:           "test",
 		WebDAVPassword:           "123456",
 		WebDAVDir:                "music",
-		DisableFloatingLyrics:    true,
 		WebPageSize:              100,
 		CliPageSize:              120,
 		DownloadConcurrency:      5,
 		DownloadTipDuration:      15,
 		AutoCheckUpdate:          false,
 		AutoSwitchInvalidSources: false,
-		AutoCacheOnPlay:          true,
 		FilterVersionKeywords:    true,
 		VersionFilterKeywords:    "Live; Demo",
 		FilterShortTracks:        true,
@@ -249,17 +203,6 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 		UpdateRepoURL:            "https://github.com/example/fork",
 		GithubProxyEnabled:       true,
 		GithubProxyURL:           "https://gh-proxy.com/",
-		VgChangeCover:            true,
-		VgChangeAudio:            true,
-		VgChangeLyric:            true,
-		VgExportVideo:            true,
-		ShortcutPlayPause:        DefaultShortcutPlayPause,
-		ShortcutPrevious:         "Ctrl+ArrowLeft",
-		ShortcutNext:             "Ctrl+ArrowRight",
-		ShortcutSeekBack:         "Ctrl+Shift+ArrowLeft",
-		ShortcutSeekForward:      "Ctrl+Shift+ArrowRight",
-		LyricFontFamily:          "pingfang",
-		LyricFontSize:            28,
 		// 未配置远程签名器时保持为空 = 使用本机签名器；空 Token 保存时保留已保存的值。
 		SodaSignerToken: "",
 	}
@@ -280,9 +223,6 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	}
 	if got.DownloadFilenameTemplate != DefaultDownloadFilenameTemplate {
 		t.Fatalf("custom save should fallback DownloadFilenameTemplate to default: got %q want %q", got.DownloadFilenameTemplate, DefaultDownloadFilenameTemplate)
-	}
-	if got.DisableFloatingLyrics {
-		t.Fatalf("custom save should fallback DisableFloatingLyrics to default false: %#v", got)
 	}
 	if got.DownloadLyricsToLocal {
 		t.Fatalf("custom save should fallback DownloadLyricsToLocal to default false: %#v", got)
@@ -305,9 +245,6 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if got.AutoSwitchInvalidSources {
 		t.Fatalf("custom save should keep AutoSwitchInvalidSources false when omitted: %#v", got)
 	}
-	if got.AutoCacheOnPlay {
-		t.Fatalf("custom save should keep AutoCacheOnPlay false when omitted: %#v", got)
-	}
 	if got.UpdateRepoURL != DefaultUpdateRepoURL {
 		t.Fatalf("custom save should fallback UpdateRepoURL to default: got %q want %q", got.UpdateRepoURL, DefaultUpdateRepoURL)
 	}
@@ -317,20 +254,11 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if got.GithubProxyURL != DefaultGithubProxyURL {
 		t.Fatalf("custom save should fallback GithubProxyURL to default: got %q want %q", got.GithubProxyURL, DefaultGithubProxyURL)
 	}
-	if got.VgChangeCover || got.VgChangeAudio || got.VgChangeLyric || got.VgExportVideo {
-		t.Fatalf("custom save should fallback video generator settings to default false: %#v", got)
-	}
 	if got.SodaSignerURL != "" {
 		t.Fatalf("custom save should keep SodaSignerURL empty when omitted: got %q", got.SodaSignerURL)
 	}
 	if got.SodaSignerToken != "" {
 		t.Fatalf("custom save should keep SodaSignerToken empty when omitted: got %q", got.SodaSignerToken)
-	}
-	if got.ShortcutPlayPause != "" || got.ShortcutPrevious != "" || got.ShortcutNext != "" || got.ShortcutSeekBack != "" || got.ShortcutSeekForward != "" {
-		t.Fatalf("custom save should clear omitted shortcuts: %#v", got)
-	}
-	if got.LyricFontFamily != DefaultLyricFontFamily || got.LyricFontSize != DefaultLyricFontSize {
-		t.Fatalf("custom save should restore default lyric appearance: %#v", got)
 	}
 
 	absoluteDir := filepath.Join(baseDir, "downloads", "absolute")
@@ -372,68 +300,8 @@ func TestWebSettingsLegacyPayloadUsesCurrentSwitchDefaults(t *testing.T) {
 	if !got.AutoSwitchInvalidSources {
 		t.Fatalf("legacy settings should default AutoSwitchInvalidSources to true: %#v", got)
 	}
-	if got.AutoCacheOnPlay {
-		t.Fatalf("legacy settings should default AutoCacheOnPlay to false: %#v", got)
-	}
 	if got.DownloadLyricsToLocal {
 		t.Fatalf("legacy settings should default DownloadLyricsToLocal to false: %#v", got)
-	}
-	if got.ShortcutPlayPause != DefaultShortcutPlayPause || got.LyricFontFamily != DefaultLyricFontFamily || got.LyricFontSize != DefaultLyricFontSize {
-		t.Fatalf("legacy settings should receive playback setting defaults: %#v", got)
-	}
-}
-
-func TestWebSettingsPlaybackShortcutsAndLyricAppearance(t *testing.T) {
-	baseDir := t.TempDir()
-	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(baseDir, "data", "settings.db"))
-	t.Setenv("MUSIC_DL_COOKIE_FILE", filepath.Join(baseDir, "data", "cookies.json"))
-	resetConfigStateForTest()
-	t.Cleanup(resetConfigStateForTest)
-
-	settings := WebSettings{
-		ShortcutPlayPause:   " control + spacebar ",
-		ShortcutPrevious:    "command+KeyK",
-		ShortcutNext:        "pgdn",
-		ShortcutSeekBack:    "Shift+ArrowLeft",
-		ShortcutSeekForward: "ArrowRight",
-		LyricFontFamily:     "SOURCE-HAN",
-		LyricFontSize:       100,
-	}
-	normalized := normalizeWebSettings(settings)
-	if normalized.ShortcutPlayPause != "Ctrl+Space" {
-		t.Fatalf("normalized play/pause shortcut = %q, want Ctrl+Space", normalized.ShortcutPlayPause)
-	}
-	if normalized.ShortcutPrevious != "Meta+K" {
-		t.Fatalf("normalized previous shortcut = %q, want Meta+K", normalized.ShortcutPrevious)
-	}
-	if normalized.ShortcutNext != "PageDown" {
-		t.Fatalf("normalized next shortcut = %q, want PageDown", normalized.ShortcutNext)
-	}
-	if normalized.LyricFontFamily != "source-han" || normalized.LyricFontSize != 48 {
-		t.Fatalf("normalized lyric appearance = %q/%d, want source-han/48", normalized.LyricFontFamily, normalized.LyricFontSize)
-	}
-
-	if err := SaveWebSettings(settings); !errors.Is(err, ErrInvalidWebSettings) {
-		t.Fatalf("reserved page shortcut should be rejected, got %v", err)
-	}
-
-	settings.ShortcutNext = "Ctrl+Space"
-	if err := SaveWebSettings(settings); !errors.Is(err, ErrInvalidWebSettings) {
-		t.Fatalf("duplicate shortcut should be rejected, got %v", err)
-	}
-
-	settings.ShortcutNext = "F9"
-	settings.LyricFontFamily = "unknown-font"
-	settings.LyricFontSize = 1
-	if err := SaveWebSettings(settings); err != nil {
-		t.Fatalf("save valid playback settings: %v", err)
-	}
-	got := GetWebSettings()
-	if got.ShortcutPlayPause != "Ctrl+Space" || got.ShortcutPrevious != "Meta+K" || got.ShortcutNext != "F9" {
-		t.Fatalf("saved shortcuts mismatch: %#v", got)
-	}
-	if got.LyricFontFamily != DefaultLyricFontFamily || got.LyricFontSize != 14 {
-		t.Fatalf("saved lyric appearance mismatch: got %q/%d", got.LyricFontFamily, got.LyricFontSize)
 	}
 }
 

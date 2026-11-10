@@ -29,11 +29,9 @@ import (
 )
 
 const (
-	localMusicSource         = "local"
-	legacyLocalMusicSource   = "local-file"
-	localMusicScanCacheTTL   = 10 * time.Second
-	autoCacheMaxRequestBytes = 64 << 10
-	autoCacheMaxConcurrent   = 2
+	localMusicSource       = "local"
+	legacyLocalMusicSource = "local-file"
+	localMusicScanCacheTTL = 10 * time.Second
 )
 
 var localMusicDownloadDirProvider = func() string {
@@ -59,12 +57,6 @@ var localMusicScanCacheMu sync.RWMutex
 var localMusicScanCache localMusicScanSnapshot
 var localMusicScanRefreshMu sync.Mutex
 var localMusicScanRefreshInFlight bool
-var autoCacheMu sync.Mutex
-var autoCacheInFlight = make(map[string]struct{})
-var autoCacheSlots = make(chan struct{}, autoCacheMaxConcurrent)
-var autoCacheSaveSong = core.SaveSongToFileWithTemplate
-var autoCacheIndexSavedSong = indexSavedLocalMusicFile
-var autoCacheSettingsProvider = core.GetWebSettings
 
 type localMusicScanSnapshot struct {
 	Dir       string
@@ -104,77 +96,6 @@ type localMusicDupItem struct {
 	Duration int    `json:"duration"`
 	Ext      string `json:"ext"`
 	RelPath  string `json:"rel_path"`
-}
-
-type autoCacheRequest struct {
-	ID     string          `json:"id"`
-	Source string          `json:"source"`
-	Name   string          `json:"name"`
-	Artist string          `json:"artist"`
-	Album  string          `json:"album"`
-	Cover  string          `json:"cover"`
-	Extra  json.RawMessage `json:"extra"`
-}
-
-func decodeAutoCacheRequest(c *gin.Context) (autoCacheRequest, error) {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, autoCacheMaxRequestBytes)
-	decoder := json.NewDecoder(c.Request.Body)
-
-	var req autoCacheRequest
-	if err := decoder.Decode(&req); err != nil {
-		return autoCacheRequest{}, err
-	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return autoCacheRequest{}, errors.New("invalid request")
-	}
-	return req, nil
-}
-
-func parseAutoCacheExtra(raw json.RawMessage) map[string]string {
-	extra := make(map[string]string)
-	if len(raw) == 0 || string(raw) == "null" {
-		return extra
-	}
-
-	var encoded string
-	if err := json.Unmarshal(raw, &encoded); err == nil {
-		_ = json.Unmarshal([]byte(encoded), &extra)
-		return extra
-	}
-
-	var values map[string]interface{}
-	if err := json.Unmarshal(raw, &values); err != nil {
-		return extra
-	}
-	for key, value := range values {
-		if text, ok := value.(string); ok {
-			extra[key] = text
-		}
-	}
-	return extra
-}
-
-func reserveAutoCache(key string) string {
-	autoCacheMu.Lock()
-	defer autoCacheMu.Unlock()
-
-	if _, exists := autoCacheInFlight[key]; exists {
-		return "in_progress"
-	}
-	select {
-	case autoCacheSlots <- struct{}{}:
-		autoCacheInFlight[key] = struct{}{}
-		return "started"
-	default:
-		return "busy"
-	}
-}
-
-func releaseAutoCache(key string) {
-	autoCacheMu.Lock()
-	delete(autoCacheInFlight, key)
-	autoCacheMu.Unlock()
-	<-autoCacheSlots
 }
 
 // indexSavedLocalMusicFile indexes the file that was just written instead of
@@ -490,69 +411,6 @@ func RegisterLocalMusicRoutes(api *gin.RouterGroup) {
 			"total":       total,
 			"total_pages": totalPages,
 		})
-	})
-
-	// autoCacheLocalMusic 播放时后台下载缓存
-	api.POST("/local_music/auto_cache", func(c *gin.Context) {
-		if !allowSameOriginWrite(c) {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "forbidden"})
-			return
-		}
-
-		req, err := decodeAutoCacheRequest(c)
-		if err != nil {
-			status := http.StatusBadRequest
-			var maxBytesErr *http.MaxBytesError
-			if errors.As(err, &maxBytesErr) {
-				status = http.StatusRequestEntityTooLarge
-			}
-			c.JSON(status, gin.H{"error": "invalid request"})
-			return
-		}
-
-		id := strings.TrimSpace(req.ID)
-		source := strings.TrimSpace(req.Source)
-		if id == "" || source == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "missing id or source"})
-			return
-		}
-		if isLocalMusicSource(source) {
-			c.JSON(http.StatusOK, gin.H{"status": "skipped", "reason": "already local"})
-			return
-		}
-
-		settings := autoCacheSettingsProvider()
-		if !settings.AutoCacheOnPlay {
-			c.JSON(http.StatusOK, gin.H{"status": "skipped", "reason": "auto cache disabled"})
-			return
-		}
-
-		cacheKey := source + ":" + id
-		if status := reserveAutoCache(cacheKey); status != "started" {
-			c.JSON(http.StatusOK, gin.H{"status": status})
-			return
-		}
-
-		song := &model.Song{
-			ID:     id,
-			Source: source,
-			Name:   strings.TrimSpace(req.Name),
-			Artist: strings.TrimSpace(req.Artist),
-			Album:  strings.TrimSpace(req.Album),
-			Cover:  strings.TrimSpace(req.Cover),
-			Extra:  parseAutoCacheExtra(req.Extra),
-		}
-
-		go func() {
-			defer releaseAutoCache(cacheKey)
-			result, err := autoCacheSaveSong(song, settings.DownloadDir, true, true, settings.DownloadFilenameTemplate)
-			if err != nil || result == nil {
-				return
-			}
-			autoCacheIndexSavedSong(result, settings.DownloadDir)
-		}()
-
-		c.JSON(http.StatusOK, gin.H{"status": "started"})
 	})
 
 	// reindexLocalMusic 手动触发全量重建 SQLite 索引

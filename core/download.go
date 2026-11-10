@@ -120,13 +120,6 @@ func SaveSongToFileWithTemplate(song *model.Song, outDir string, withCover bool,
 	return saveSongToFileWithTemplate(song, outDir, withCover, withLyrics, filenameTemplate, settings.DownloadLyricsToLocal)
 }
 
-// SaveSongToFileWithoutLyricsSidecar is for internal audio staging such as
-// video rendering. It never fetches or writes a sidecar LRC, even when the
-// download setting is enabled, and avoids leaving staging files behind.
-func SaveSongToFileWithoutLyricsSidecar(song *model.Song, outDir string, withCover bool, withLyrics bool, filenameTemplate string) (*DownloadedSong, error) {
-	return saveSongToFileWithTemplate(song, outDir, withCover, withLyrics, filenameTemplate, false)
-}
-
 func saveSongToFileWithTemplate(song *model.Song, outDir string, withCover bool, withLyrics bool, filenameTemplate string, exportLyrics bool) (*DownloadedSong, error) {
 	result, err := downloadSongDataWithTemplate(
 		song,
