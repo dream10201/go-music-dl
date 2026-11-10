@@ -809,7 +809,7 @@ body.batch-mode .song-card { padding-left: 10px; }
 
 /* Modals */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; display: none; align-items: center; justify-content: center; }
-.modal { background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 500px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+.modal { background: white; padding: 25px; border-radius: 20px; width: 90%; max-width: 640px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
 .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
 .modal-header h3 { margin: 0; font-size: 18px; color: var(--text-main); }
 .modal-close { cursor: pointer; color: #a0aec0; font-size: 20px; }
@@ -818,9 +818,9 @@ body.batch-mode .song-card { padding-left: 10px; }
 
 .settings-modal-overlay { padding: 20px; box-sizing: border-box; }
 .settings-modal {
-    width: min(760px, 100%);
-    max-width: 760px;
-    height: min(720px, calc(100vh - 40px));
+    width: min(1000px, 100%);
+    max-width: 1000px;
+    height: min(820px, calc(100vh - 40px));
     max-height: calc(100vh - 40px);
     padding: 0;
     overflow: hidden;
@@ -1119,7 +1119,7 @@ body.batch-mode .song-card { padding-left: 10px; }
 /* 统一的小弹窗样式，用于下载记录和重复检测 */
 .utility-modal-overlay { z-index: 1009; padding: 16px; box-sizing: border-box; }
 .utility-modal-overlay.is-open { display: flex; }
-.utility-modal { width: min(680px, 100%); max-height: min(680px, calc(100vh - 32px)); padding: 0; overflow: hidden; border: 1px solid #dcebe4; border-radius: 18px; box-shadow: 0 24px 56px rgba(15, 23, 42, 0.22); }
+.utility-modal { width: min(1100px, 100%); max-height: min(820px, calc(100vh - 32px)); padding: 0; overflow: hidden; border: 1px solid #dcebe4; border-radius: 18px; box-shadow: 0 24px 56px rgba(15, 23, 42, 0.22); }
 .utility-modal .modal-header { align-items: flex-start; margin: 0; padding: 17px 20px 14px; border-bottom: 1px solid #edf2f7; }
 .utility-modal .modal-header h3 { margin: 0; font-size: 16px; }
 .utility-modal .modal-header h3 i { color: #059669; margin-right: 3px; }
@@ -1132,22 +1132,22 @@ body.batch-mode .song-card { padding-left: 10px; }
 .utility-modal-count, .download-records-count { display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px; border: 1px solid #d1fae5; border-radius: 999px; background: #f0fdf4; color: #047857; font-size: 12px; font-weight: 700; }
 .utility-modal-actions, .download-records-actions { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .utility-modal-actions .btn-pill, .download-records-actions .btn-pill { min-height: 30px; padding: 5px 10px; font-size: 12px; }
-.utility-modal-list, .download-records-list { max-height: min(420px, 52vh); overflow: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.utility-modal-list, .download-records-list { max-height: min(540px, 58vh); overflow: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
 .utility-modal-pagination { min-height: 32px; display: flex; align-items: center; justify-content: center; gap: 9px; margin-top: 12px; }
 .utility-modal-page-button { width: 30px; height: 30px; border: 1px solid #cce7da; border-radius: 9px; background: #f0fdf4; color: #047857; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .utility-modal-page-button:hover:not(:disabled) { border-color: #34d399; background: #d1fae5; }
 .utility-modal-page-button:disabled { border-color: #e2e8f0; background: #f8fafc; color: #cbd5e1; cursor: default; }
 .utility-modal-page-status { min-width: 76px; color: #64748b; font-size: 12px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
 .utility-modal-footer, .download-records-footer { display: flex; justify-content: flex-end; margin-top: 12px; }
-.download-records-modal { max-width: 760px; }
+.download-records-modal { max-width: 1100px; }
 .download-records-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
 .download-records-table th { position: sticky; top: 0; z-index: 1; padding: 10px 12px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 11px; font-weight: 800; letter-spacing: 0.05em; text-align: left; white-space: nowrap; }
 .download-records-table td { padding: 10px 12px; border-bottom: 1px solid #edf2f7; vertical-align: middle; }
 .download-records-table tbody tr:last-child td { border-bottom: none; }
 .download-records-table tbody tr:hover { background: #f8fafc; }
-.download-record-name { max-width: 205px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-main); font-weight: 700; }
-.download-record-reason { max-width: 205px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78em; color: var(--text-sub); }
-.download-record-artist { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-sub); }
+.download-record-name { overflow-wrap: anywhere; color: var(--text-main); font-weight: 700; }
+.download-record-reason { overflow-wrap: anywhere; font-size: 0.78em; color: var(--text-sub); }
+.download-record-artist { overflow-wrap: anywhere; color: var(--text-sub); }
 .download-record-source { color: #047857; font-size: 12px; font-weight: 700; }
 .download-record-status { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 58px; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 800; white-space: nowrap; }
 .download-record-status.is-success { background: #ecfdf5; color: #047857; }
@@ -1218,7 +1218,7 @@ body.batch-mode .song-card { padding-left: 10px; }
 .btn-save { width: 100%; padding: 12px; background: var(--primary-gradient); color: white; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; margin-top: 10px; font-size: 15px;}
 .btn-save:disabled { cursor: wait; opacity: 0.72; }
 
-.qr-login-modal { max-width: 420px; }
+.qr-login-modal { max-width: 480px; }
 .qr-login-card {
     display: flex;
     flex-direction: column;
@@ -1436,7 +1436,6 @@ body.batch-mode .song-card { padding-left: 10px; }
     .utility-modal-pagination { margin-top: 10px; }
     .download-records-table th, .download-records-table td { padding: 9px 8px; }
     .download-records-table th:nth-child(2), .download-records-table td:nth-child(2), .download-records-table th:nth-child(3), .download-records-table td:nth-child(3) { display: none; }
-    .download-record-name { max-width: 130px; }
     .download-record-time { font-size: 11px; }
     .pagination-bar { gap: 8px; }
     .pagination-text { font-size: 12px; }
