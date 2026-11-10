@@ -184,7 +184,7 @@ func InitDB() {
 	}
 
 	var err error
-	db, err = gorm.Open(sqlite.Open(dbPath+"?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open(dbPath+"?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"), &gorm.Config{})
 	if err != nil {
 		panic("Failed to connect to SQLite: " + err.Error())
 	}

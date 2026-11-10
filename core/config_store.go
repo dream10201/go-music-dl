@@ -146,7 +146,7 @@ func ensureConfigDB() error {
 			return
 		}
 
-		db, err := gorm.Open(sqlite.Open(dbPath+"?_pragma=busy_timeout(5000)"), &gorm.Config{})
+		db, err := gorm.Open(sqlite.Open(dbPath+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)"), &gorm.Config{})
 		if err != nil {
 			configInitErr = err
 			return

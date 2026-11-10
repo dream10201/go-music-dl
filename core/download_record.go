@@ -64,6 +64,30 @@ func invalidateDedupCache() {
 	dedupCacheMu.Unlock()
 }
 
+// touchDedupCache incrementally records a newly saved dedup entry in the loaded
+// cache instead of discarding it. Discarding forced the next download to reload
+// and re-normalize every row (O(N) plus NFKC/繁简转换 per row); for a library of
+// tens of thousands of songs that cost was paid once per downloaded track. The
+// key is already normalized by songKeyFromParts, matching the lookup path. A
+// nil cache is left untouched so the next read still does a full load once.
+func touchDedupCache(key, relPath string) {
+	key = cleanDownloadRecordText(key)
+	if key == "" {
+		return
+	}
+	dedupCacheMu.Lock()
+	defer dedupCacheMu.Unlock()
+	if dedupCache == nil {
+		return
+	}
+	if relPath == "" {
+		if _, ok := dedupCache[key]; ok {
+			return // never overwrite a known path with an empty one
+		}
+	}
+	dedupCache[key] = relPath
+}
+
 func initDownloadRecordTable() error {
 	if err := ensureConfigDB(); err != nil {
 		return err
@@ -117,10 +141,7 @@ func saveFailedDownloadRecord(song *model.Song, embed bool, errStr string) error
 }
 
 func saveDownloadRecord(record DownloadRecord, relPath string) error {
-	if record.Status == DownloadStatusSuccess {
-		defer invalidateDedupCache()
-	}
-	return configDB.Transaction(func(tx *gorm.DB) error {
+	err := configDB.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(&record).Error; err != nil {
 			return err
 		}
@@ -130,6 +151,10 @@ func saveDownloadRecord(record DownloadRecord, relPath string) error {
 
 		return saveDownloadDedupEntry(tx, record.Name, record.Artist, relPath)
 	})
+	if err == nil && record.Status == DownloadStatusSuccess {
+		touchDedupCache(songKeyFromParts(record.Name, record.Artist), cleanDownloadRelPath(relPath))
+	}
+	return err
 }
 
 // SaveDownloadDedupEntry records a song as already available locally without
@@ -138,8 +163,11 @@ func SaveDownloadDedupEntry(name, artist, relPath string) error {
 	if err := initDownloadRecordTable(); err != nil {
 		return err
 	}
-	defer invalidateDedupCache()
-	return saveDownloadDedupEntry(configDB, name, artist, relPath)
+	err := saveDownloadDedupEntry(configDB, name, artist, relPath)
+	if err == nil {
+		touchDedupCache(songKeyFromParts(name, artist), cleanDownloadRelPath(relPath))
+	}
+	return err
 }
 
 func saveDownloadDedupEntry(db *gorm.DB, name, artist, relPath string) error {

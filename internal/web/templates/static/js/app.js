@@ -5159,6 +5159,7 @@ let downloadQueueRenderKey = "";
 let downloadQueueFilter = "";
 let downloadQueuePaused = false;
 let downloadQueuePauseReason = "";
+let downloadQueueActiveCount = 0;
 let downloadManagerTab = "queue";
 
 function createDownloadRequestID() {
@@ -5325,6 +5326,7 @@ async function loadDownloadQueue(page = downloadQueuePage) {
     downloadQueuePage = data.page;
     const c = data.counts || {};
     const active = (c.waiting || 0) + (c.downloading || 0);
+    downloadQueueActiveCount = active;
     const finished = (c.success || 0) + (c.skipped || 0) + (c.failed || 0) + (c.canceled || 0);
     const total = active + finished;
     setDownloadRecordsButtonState(active ? "downloading" : "idle");
@@ -5387,7 +5389,11 @@ async function deleteDownloadQueue(url) {
 window.setInterval(() => {
   if (document.hidden) return;
   const modal = document.getElementById("downloadRecordsModal");
-  if ((modal && modal.style.display === "flex" && downloadManagerTab === "queue") || Date.now() - downloadQueueLastPoll >= 10000) void loadDownloadQueue();
+  if (modal && modal.style.display === "flex" && downloadManagerTab === "queue") { void loadDownloadQueue(); return; }
+  // When the panel is closed, only keep the background poll alive while work is
+  // in flight (or paused), so the badge/progress and any auto-pause still update.
+  // An idle queue stops polling entirely instead of scanning the table every 10s.
+  if ((downloadQueueActiveCount > 0 || downloadQueuePaused) && Date.now() - downloadQueueLastPoll >= 10000) void loadDownloadQueue();
 }, 2000);
 document.addEventListener("DOMContentLoaded", () => { void loadDownloadQueue(); });
 

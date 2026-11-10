@@ -160,7 +160,11 @@ func (q *DownloadQueue) List(page, size int, status string) ([]DownloadTask, int
 		return nil, 0, nil, err
 	}
 	tasks := []DownloadTask{}
-	err := query.Order("CASE status WHEN 'downloading' THEN 0 WHEN 'waiting' THEN 1 ELSE 2 END, CASE WHEN status IN ('waiting', 'downloading') THEN id END ASC, id DESC").Offset((page - 1) * size).Limit(size).Find(&tasks).Error
+	// Omit Payload (the full task JSON) from the listing query: it is never shown
+	// (json:"-") but would otherwise be read into memory and the sorter for every
+	// row on each poll, which is costly once the table holds tens of thousands of
+	// finished tasks.
+	err := query.Omit("Payload").Order("CASE status WHEN 'downloading' THEN 0 WHEN 'waiting' THEN 1 ELSE 2 END, CASE WHEN status IN ('waiting', 'downloading') THEN id END ASC, id DESC").Offset((page - 1) * size).Limit(size).Find(&tasks).Error
 	return tasks, total, counts, err
 }
 
@@ -294,6 +298,11 @@ func (q *DownloadQueue) requeue(id uint) error {
 	})
 }
 
+// downloadFinishedHistoryLimit bounds how many terminal (success/skipped/failed/
+// canceled) tasks are retained. The queue previously never pruned finished rows,
+// so the table grew without limit and every poll scanned all of them.
+const downloadFinishedHistoryLimit = 3000
+
 func (q *DownloadQueue) recoverInterrupted() error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -301,8 +310,26 @@ func (q *DownloadQueue) recoverInterrupted() error {
 		if err := tx.Where("removed = ?", true).Delete(&DownloadTask{}).Error; err != nil {
 			return err
 		}
-		return tx.Model(&DownloadTask{}).Where("status = ?", TaskDownloading).Updates(map[string]interface{}{"status": TaskWaiting, "error": ""}).Error
+		if err := tx.Model(&DownloadTask{}).Where("status = ?", TaskDownloading).Updates(map[string]interface{}{"status": TaskWaiting, "error": ""}).Error; err != nil {
+			return err
+		}
+		return pruneFinishedTasks(tx, downloadFinishedHistoryLimit)
 	})
+}
+
+// pruneFinishedTasks keeps only the most recent `keep` terminal tasks, deleting
+// older ones. Active (waiting/downloading) tasks are never touched.
+func pruneFinishedTasks(tx *gorm.DB, keep int) error {
+	terminal := []string{DownloadStatusSuccess, DownloadStatusSkipped, DownloadStatusFailed, TaskCanceled}
+	var cutoff struct{ ID uint }
+	row := tx.Model(&DownloadTask{}).Select("id").Where("status IN ?", terminal).Order("id DESC").Offset(keep).Limit(1).Scan(&cutoff)
+	if row.Error != nil {
+		return row.Error
+	}
+	if row.RowsAffected == 0 {
+		return nil
+	}
+	return tx.Where("status IN ? AND id <= ?", terminal, cutoff.ID).Delete(&DownloadTask{}).Error
 }
 func (q *DownloadQueue) claim() (*DownloadTask, error) {
 	q.mu.Lock()
