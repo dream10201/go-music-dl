@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/guohuiyuan/go-music-dl/core"
 	"github.com/guohuiyuan/go-music-dl/lib/model"
 )
 
@@ -40,7 +39,7 @@ func TestRenderTopListsPanelUsesAjaxNavigation(t *testing.T) {
 				},
 			}),
 		})
-		renderIndex(c, nil, nil, "", []string{"netease"}, "", "playlist", "", "", "", false, "", nil)
+		renderIndex(c, nil, nil, "", []string{"netease"}, "", "playlist", "", nil)
 	})
 
 	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/toplists", nil)
@@ -90,7 +89,7 @@ func TestRenderTopListCurrentBar(t *testing.T) {
 		})
 		renderIndex(c, []model.Song{
 			{ID: "287398", Name: "我不难过", Artist: "孙燕姿", Source: "netease"},
-		}, nil, "", []string{"netease"}, "", "playlist", "", "", "", false, "", nil)
+		}, nil, "", []string{"netease"}, "", "playlist", "", nil)
 	})
 
 	req := httptest.NewRequest(http.MethodGet, RoutePrefix+"/toplist_songs", nil)
@@ -120,7 +119,7 @@ func TestTopListSourcesFromQuery(t *testing.T) {
 
 	c, _ = gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
-	if got, want := topListSourcesFromQuery(c), core.GetTopListSourceNames(); !reflect.DeepEqual(got, want) {
+	if got, want := topListSourcesFromQuery(c), []string{"migu"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("topListSourcesFromQuery() = %v, want %v", got, want)
 	}
 }

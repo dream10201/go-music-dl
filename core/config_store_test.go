@@ -122,8 +122,8 @@ func TestWebSettingsDefaultAndPersist(t *testing.T) {
 	if defaults.DownloadTipDuration != DefaultDownloadTipDuration {
 		t.Fatalf("default DownloadTipDuration mismatch: got %d want %d", defaults.DownloadTipDuration, DefaultDownloadTipDuration)
 	}
-	if !defaults.AutoSwitchInvalidSources {
-		t.Fatalf("default AutoSwitchInvalidSources should be true")
+	if defaults.AutoSwitchInvalidSources {
+		t.Fatalf("default AutoSwitchInvalidSources should be false")
 	}
 	if defaults.FilterVersionKeywords || defaults.FilterShortTracks {
 		t.Fatalf("default search filters should be disabled: %#v", defaults)
@@ -264,8 +264,8 @@ func TestWebSettingsLegacyPayloadUsesCurrentSwitchDefaults(t *testing.T) {
 	}
 
 	got := GetWebSettings()
-	if !got.AutoSwitchInvalidSources {
-		t.Fatalf("legacy settings should default AutoSwitchInvalidSources to true: %#v", got)
+	if got.AutoSwitchInvalidSources {
+		t.Fatalf("legacy settings should default AutoSwitchInvalidSources to false: %#v", got)
 	}
 	if got.DownloadLyricsToLocal {
 		t.Fatalf("legacy settings should default DownloadLyricsToLocal to false: %#v", got)

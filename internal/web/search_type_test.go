@@ -13,17 +13,10 @@ import (
 )
 
 func TestDefaultSourcesForSearchType(t *testing.T) {
-	wantAlbum := core.GetAlbumSourceNames()
-	if got := defaultSourcesForSearchType("album"); !reflect.DeepEqual(got, wantAlbum) {
-		t.Fatalf("defaultSourcesForSearchType(album) = %v, want %v", got, wantAlbum)
-	}
-
-	if got := defaultSourcesForSearchType("playlist"); len(got) == 0 {
-		t.Fatal("defaultSourcesForSearchType(playlist) returned empty sources")
-	}
-
-	if got := defaultSourcesForSearchType("song"); len(got) == 0 {
-		t.Fatal("defaultSourcesForSearchType(song) returned empty sources")
+	for _, searchType := range []string{"song", "playlist", "album"} {
+		if got, want := defaultSourcesForSearchType(searchType), []string{"migu"}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("defaultSourcesForSearchType(%s) = %v, want %v", searchType, got, want)
+		}
 	}
 }
 
@@ -118,9 +111,6 @@ func TestImportCollectionFromQueryBuildsSongListImportButton(t *testing.T) {
 	}
 	if meta.ContentType != collectionContentPlaylist {
 		t.Fatalf("meta.ContentType = %q, want %q", meta.ContentType, collectionContentPlaylist)
-	}
-	if !strings.Contains(meta.HoverText, "元数据") {
-		t.Fatalf("meta.HoverText = %q, want contains 元数据", meta.HoverText)
 	}
 }
 

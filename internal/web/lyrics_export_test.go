@@ -11,7 +11,7 @@ import (
 )
 
 func TestLyricDownloadFilenameUsesAudioFilenameTemplate(t *testing.T) {
-	initCollectionDBForTest(t)
+	initConfigDBForTest(t)
 	if err := core.SaveWebSettings(core.WebSettings{
 		DownloadFilenameTemplate: "{artist} - {name}",
 	}); err != nil {
@@ -25,7 +25,7 @@ func TestLyricDownloadFilenameUsesAudioFilenameTemplate(t *testing.T) {
 }
 
 func TestSaveWebAssetRelativeToLocalUsesFilenameTemplate(t *testing.T) {
-	initCollectionDBForTest(t)
+	initConfigDBForTest(t)
 	downloadDir := t.TempDir()
 	if err := core.SaveWebSettings(core.WebSettings{
 		DownloadDir:              downloadDir,
@@ -70,20 +70,8 @@ func TestSaveWebAssetRelativeToLocalUsesFilenameTemplate(t *testing.T) {
 }
 
 func TestSaveWebAssetRelativeToLocalRejectsEscapingPath(t *testing.T) {
-	initCollectionDBForTest(t)
+	initConfigDBForTest(t)
 	if _, _, err := saveWebAssetRelativeToLocal("../outside.lrc", []byte("lyric")); err == nil {
 		t.Fatal("path traversal should be rejected")
-	}
-}
-
-func TestLocalMusicLyricSidecarFilenameUsesActualAudioPath(t *testing.T) {
-	track := &localMusicTrack{
-		Name:     "Metadata Title",
-		Artist:   "Metadata Artist",
-		Filename: "Audio File.flac",
-		RelPath:  "Folder/Audio File.flac",
-	}
-	if got, want := localMusicLyricSidecarFilename(track), "Folder/Audio File.lrc"; got != want {
-		t.Fatalf("localMusicLyricSidecarFilename() = %q, want %q", got, want)
 	}
 }

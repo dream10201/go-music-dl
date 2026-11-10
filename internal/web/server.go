@@ -40,18 +40,10 @@ type importCollectionMeta struct {
 	ExternalID  string
 	Link        string
 	ContentType string
-	HoverText   string
 }
 
-func defaultSourcesForSearchType(searchType string) []string {
-	switch searchType {
-	case "playlist":
-		return core.GetPlaylistSourceNames()
-	case "album":
-		return core.GetAlbumSourceNames()
-	default:
-		return core.GetDefaultSourceNames()
-	}
+func defaultSourcesForSearchType(string) []string {
+	return []string{"migu"}
 }
 
 func collectionLabelForSearchType(searchType string) string {
@@ -175,17 +167,7 @@ func playlistExtraValue(playlist model.Playlist, key string) string {
 	return strings.TrimSpace(playlist.Extra[key])
 }
 
-func importCollectionHoverText(contentType string) string {
-	if contentType == collectionContentAlbum {
-		return "导入到本地歌单列表，保存为外部导入专辑；仅保存元数据，不保存具体歌曲明细。"
-	}
-	return "导入到本地歌单列表，保存为外部导入歌单；仅保存元数据，不保存具体歌曲明细。"
-}
-
 func playlistDetailURL(root string, searchType string, playlist model.Playlist) string {
-	if strings.TrimSpace(playlist.Source) == "local" {
-		return fmt.Sprintf("%s/collection?id=%s", root, url.QueryEscape(playlist.ID))
-	}
 	if playlistExtraValue(playlist, "external_only") == "true" && strings.TrimSpace(playlist.Link) != "" {
 		return playlist.Link
 	}
@@ -229,8 +211,7 @@ func playlistDetailURL(root string, searchType string, playlist model.Playlist) 
 func isDetailPagePath(requestPath string) bool {
 	requestPath = strings.TrimRight(strings.TrimSpace(requestPath), "/")
 	return strings.HasSuffix(requestPath, "/playlist") ||
-		strings.HasSuffix(requestPath, "/album") ||
-		strings.HasSuffix(requestPath, "/collection")
+		strings.HasSuffix(requestPath, "/album")
 }
 
 type cookieCaptureHint struct {
@@ -367,7 +348,7 @@ func filterSongsForDisplay(songs []model.Song, settings core.WebSettings) []mode
 	return filtered
 }
 
-func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist, q string, selected []string, errMsg string, searchType string, playlistLink string, colID string, colName string, isLocalColPage bool, collectionKind string, importCollection *importCollectionMeta) {
+func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist, q string, selected []string, errMsg string, searchType string, playlistLink string, importCollection *importCollectionMeta) {
 	allSrc := core.GetAllSourceNames()
 	desc := make(map[string]string)
 	for _, s := range allSrc {
@@ -378,9 +359,6 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 	for _, s := range core.GetPlaylistSourceNames() {
 		playlistSupported[s] = true
 	}
-	// 本地音乐支持歌单搜索（搜本地自建/导入歌单），但不进 GetPlaylistSourceNames
-	// 以免成为默认勾选项——这里仅开启复选框在歌单模式下可用。
-	playlistSupported["local"] = true
 	albumSupported := make(map[string]bool)
 	for _, s := range core.GetAlbumSourceNames() {
 		albumSupported[s] = true
@@ -397,14 +375,9 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 	for _, s := range core.GetQRLoginSourceNames() {
 		qrLoginSupported[s] = true
 	}
-	userPlaylistSupported := make(map[string]bool)
-	for _, s := range core.GetUserPlaylistSourceNames() {
-		userPlaylistSupported[s] = true
-	}
 
 	playlistCategorySources, _ := c.Get("PlaylistCategorySources")
 	playlistCategoryCurrent, _ := c.Get("PlaylistCategoryCurrent")
-	playlistSourceTabs, _ := c.Get("PlaylistSourceTabs")
 	topListSources, _ := c.Get("TopListSources")
 	topListCurrent, _ := c.Get("TopListCurrent")
 	isSearchResults, _ := c.Get("IsSearchResults")
@@ -479,7 +452,7 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 		"PageEnd":                 pageEnd,
 		"Keyword":                 q,
 		"AllSources":              allSrc,
-		"DefaultSources":          []string{"migu"},
+		"DefaultSources":          defaultSourcesForSearchType(searchType),
 		"SourceDescriptions":      desc,
 		"CookieCaptureHints":      cookieCaptureHints(),
 		"Selected":                selected,
@@ -496,20 +469,12 @@ func renderIndex(c *gin.Context, songs []model.Song, playlists []model.Playlist,
 		"CollectionCreator":       collectionCreatorLabelForSearchType(searchType),
 		"Root":                    RoutePrefix,
 		"PlaylistLink":            playlistLink,
-		"ColID":                   colID,
-		"ColName":                 colName,
-		"CollectionKind":          collectionKind,
-		"CollectionContentType":   c.GetString("CollectionContentType"),
 		"ImportCollection":        importCollection,
-		"CanRemoveSongs":          colID != "" && collectionKind == collectionKindManual,
-		"IsLocalColPage":          isLocalColPage,
 		"PlaylistCategorySources": playlistCategorySources,
 		"PlaylistCategoryCurrent": playlistCategoryCurrent,
-		"PlaylistSourceTabs":      playlistSourceTabs,
 		"TopListSources":          topListSources,
 		"TopListCurrent":          topListCurrent,
 		"IsSearchResults":         isSearchResults,
-		"UserPlaylistSupported":   userPlaylistSupported,
 	})
 }
 
@@ -543,8 +508,7 @@ func StartWithOptions(port string, opts StartOptions) {
 	} else if token, tokenErr := prepareSetupToken(settings); tokenErr == nil && token != "" {
 		fmt.Printf("Web setup token: %s\nOpen %s/setup and keep this startup terminal private until setup is complete.\n", token, RoutePrefix)
 	}
-	InitDB()
-	defer CloseDB()
+	defer core.CloseConfigDB()
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
@@ -629,8 +593,6 @@ func StartWithOptions(port string, opts StartOptions) {
 
 	RegisterMusicRoutes(api, configAPI)
 	RegisterQRLoginRoutes(configAPI)
-	RegisterCollectionRoutes(api)
-	RegisterLocalMusicRoutes(api)
 
 	queue, err := core.OpenDownloadQueue()
 	if err != nil {

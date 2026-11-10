@@ -892,7 +892,7 @@ func ValidatePlayable(song *model.Song) bool {
 	if song == nil || song.ID == "" || song.Source == "" {
 		return false
 	}
-	if song.Source == "soda" || song.Source == "fivesing" || song.Source == "local" || song.Source == "local-file" {
+	if song.Source == "soda" || song.Source == "fivesing" {
 		return false
 	}
 	fn := GetDownloadFunc(song.Source)
@@ -1128,7 +1128,7 @@ func OpenBrowser(url string) {
 }
 
 func GetAllSourceNames() []string {
-	return []string{"netease", "qq", "kugou", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "soda", "bilibili", "apple", "spotify", "local"}
+	return []string{"netease", "qq", "kugou", "kuwo", "migu", "fivesing", "jamendo", "joox", "qianqian", "soda", "bilibili", "apple", "spotify"}
 }
 
 func GetPlaylistSourceNames() []string {
@@ -1150,7 +1150,7 @@ func GetTopListSourceNames() []string {
 func GetDefaultSourceNames() []string {
 	allSources := GetAllSourceNames()
 	var defaultSources []string
-	excluded := map[string]bool{"bilibili": true, "joox": true, "jamendo": true, "fivesing": true, "spotify": true, "local": true}
+	excluded := map[string]bool{"bilibili": true, "joox": true, "jamendo": true, "fivesing": true, "spotify": true}
 	for _, source := range allSources {
 		if !excluded[source] {
 			defaultSources = append(defaultSources, source)
@@ -1174,7 +1174,6 @@ func GetSourceDescription(source string) string {
 		"bilibili": "Bilibili",
 		"apple":    "Apple Music",
 		"spotify":  "Spotify",
-		"local":    "本地音乐",
 	}
 	if desc, exists := descriptions[source]; exists {
 		return desc

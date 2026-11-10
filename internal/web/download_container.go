@@ -3,7 +3,6 @@ package web
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -36,23 +35,12 @@ func downloadSongLabel(song model.Song) string {
 
 func loadDownloadContainerSongs(req downloadContainerRequest) ([]model.Song, error) {
 	switch req.Kind {
-	case "collection":
-		id, err := strconv.ParseUint(req.ID, 10, 32)
-		if err != nil || id == 0 {
-			return nil, fmt.Errorf("无效的本地歌单 ID")
-		}
-		collection, err := loadCollection(req.ID)
-		if err != nil {
-			return nil, fmt.Errorf("本地歌单不存在")
-		}
-		return loadCollectionSongs(collection)
 	case collectionContentPlaylist, collectionContentAlbum:
 		source := strings.TrimSpace(req.Source)
-		if source == "" || isLocalMusicSource(source) || strings.TrimSpace(req.ID) == "" {
+		if source == "" || strings.TrimSpace(req.ID) == "" {
 			return nil, fmt.Errorf("缺少平台或歌单/专辑 ID")
 		}
-		collection := &Collection{Kind: collectionKindImported, ContentType: req.Kind, Source: source, ExternalID: req.ID, Link: req.Link}
-		return loadImportedCollectionSongs(collection)
+		return loadContainerSongs(req.Kind, source, req.ID, req.Link)
 	default:
 		return nil, fmt.Errorf("不支持的下载类型")
 	}
@@ -85,14 +73,9 @@ func registerDownloadContainerRoute(api *gin.RouterGroup, queue *core.DownloadQu
 			return
 		}
 		inputs := make([]core.DownloadTaskInput, 0, len(songs))
-		local := 0
 		skippedInvalid := 0
 		skippedSongs := make([]string, 0, maxSkippedDownloadSongLabels)
 		for _, song := range songs {
-			if isLocalMusicSource(song.Source) {
-				local++
-				continue
-			}
 			if strings.TrimSpace(song.ID) == "" || strings.TrimSpace(song.Source) == "" {
 				skippedInvalid++
 				if len(skippedSongs) < maxSkippedDownloadSongLabels {
@@ -114,7 +97,7 @@ func registerDownloadContainerRoute(api *gin.RouterGroup, queue *core.DownloadQu
 				c.JSON(400, gin.H{"error": message, "skipped_invalid": skippedInvalid, "skipped_songs": skippedSongs})
 				return
 			}
-			c.JSON(400, gin.H{"error": "歌单中均为已有本地音乐，无需重复下载"})
+			c.JSON(400, gin.H{"error": "没有可加入下载队列的歌曲"})
 			return
 		}
 		added, err := queue.Enqueue(req.RequestID, inputs)
@@ -126,7 +109,6 @@ func registerDownloadContainerRoute(api *gin.RouterGroup, queue *core.DownloadQu
 			"added":           added,
 			"existing":        len(inputs) - added,
 			"total":           len(songs),
-			"skipped_local":   local,
 			"skipped_invalid": skippedInvalid,
 			"skipped_songs":   skippedSongs,
 		})

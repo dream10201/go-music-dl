@@ -192,7 +192,6 @@ func defaultWebSettings() WebSettings {
 		CliPageSize:              DefaultCLIPageSize,
 		DownloadConcurrency:      DefaultWebConcurrency,
 		DownloadTipDuration:      DefaultDownloadTipDuration,
-		AutoSwitchInvalidSources: true,
 		FilterVersionKeywords:    false,
 		VersionFilterKeywords:    "Live, Remix, Demo",
 		FilterShortTracks:        false,

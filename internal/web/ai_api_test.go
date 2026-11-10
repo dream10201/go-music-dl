@@ -59,15 +59,10 @@ func TestAIIndexUsesExistingRoutes(t *testing.T) {
 		"GET /music/toplist_songs",
 		"GET /music/playlist_categories",
 		"GET /music/category_playlists",
-		"GET /music/recommend",
-		"GET /music/user_playlists",
 		"GET /music/switch_source",
 		"GET /music/inspect",
 		"GET /music/download",
 		"GET /music/lyric",
-		"GET /music/local_music",
-		"GET /music/collections",
-		"GET /music/collections/{id}/songs",
 		"GET /music/api/downloads/queue",
 		"POST /music/api/downloads/queue",
 		"POST /music/api/downloads/queue/container",
@@ -148,7 +143,7 @@ func TestAILLMSTextPointsToExistingRoutes(t *testing.T) {
 		"GET /music/switch_source",
 		"GET /music/toplists",
 		"POST /music/api/downloads/queue",
-		"Existing search, playlist, album, ranking, recommendation, and category routes return the normal rendered page",
+		"Existing search, playlist, album, ranking, and category routes return the normal rendered page",
 	} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("llms.txt missing %q: %s", want, body)

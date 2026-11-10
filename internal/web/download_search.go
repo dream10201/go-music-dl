@@ -79,9 +79,7 @@ func takeSearchDownloadResult(token string) (searchResult, bool) {
 
 func containerDownloadRequest(searchType string, playlist model.Playlist) downloadContainerRequest {
 	kind := collectionContentPlaylist
-	if strings.TrimSpace(playlist.Source) == "local" {
-		kind = "collection"
-	} else if searchType == collectionContentAlbum {
+	if searchType == collectionContentAlbum {
 		kind = collectionContentAlbum
 	}
 	return downloadContainerRequest{Kind: kind, ID: playlist.ID, Source: playlist.Source, Link: playlist.Link}
@@ -133,19 +131,15 @@ func collectSearchContainerSongs(searchType string, playlists []model.Playlist) 
 	return songs, failedLabels, failedCount
 }
 
-func splitDownloadableSongs(songs []model.Song) (downloadable []model.Song, local int, invalid int) {
+func splitDownloadableSongs(songs []model.Song) (downloadable []model.Song, invalid int) {
 	for _, song := range songs {
-		if isLocalMusicSource(song.Source) {
-			local++
-			continue
-		}
 		if strings.TrimSpace(song.ID) == "" || strings.TrimSpace(song.Source) == "" {
 			invalid++
 			continue
 		}
 		downloadable = append(downloadable, song)
 	}
-	return downloadable, local, invalid
+	return downloadable, invalid
 }
 
 func registerSearchDownloadRoute(api *gin.RouterGroup, queue *core.DownloadQueue) {
@@ -191,9 +185,8 @@ func registerSearchDownloadRoute(api *gin.RouterGroup, queue *core.DownloadQueue
 		if req.DryRun {
 			payload := gin.H{"token": cacheSearchDownloadResult(result), "type": result.SearchType}
 			if result.SearchType == "song" {
-				downloadable, local, invalid := splitDownloadableSongs(result.Songs)
+				downloadable, invalid := splitDownloadableSongs(result.Songs)
 				payload["songs"] = len(downloadable)
-				payload["skipped_local"] = local
 				payload["skipped_invalid"] = invalid
 			} else {
 				tracks := 0
@@ -217,7 +210,7 @@ func registerSearchDownloadRoute(api *gin.RouterGroup, queue *core.DownloadQueue
 			containers = len(result.Playlists)
 			songs, failedLabels, failedCount = collectSearchContainerSongs(result.SearchType, result.Playlists)
 		}
-		downloadable, local, invalid := splitDownloadableSongs(songs)
+		downloadable, invalid := splitDownloadableSongs(songs)
 		if len(downloadable) == 0 {
 			c.JSON(400, gin.H{"error": "没有可加入下载队列的歌曲", "failed_containers": failedCount})
 			return
@@ -244,7 +237,6 @@ func registerSearchDownloadRoute(api *gin.RouterGroup, queue *core.DownloadQueue
 			"containers":        containers,
 			"failed_containers": failedCount,
 			"failed_labels":     failedLabels,
-			"skipped_local":     local,
 			"skipped_invalid":   invalid,
 		})
 	})

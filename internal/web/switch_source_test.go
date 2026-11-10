@@ -52,7 +52,7 @@ func TestAppJSAutoSwitchInvalidSources(t *testing.T) {
 
 	js := string(content)
 	for _, want := range []string{
-		"autoSwitchInvalidSources: true",
+		"autoSwitchInvalidSources: false",
 		"function scheduleAutoSwitchInvalidSources",
 		"async function autoSwitchInvalidSources()",
 		`card.dataset.autoSwitchInvalidAttempted = "1"`,

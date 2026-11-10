@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<!-- 右侧工具栏：设置、历史和本地音乐在所有页面均可使用 -->
+<!-- 右侧工具栏：设置和历史在所有页面均可使用 -->
 <div class="right-toolbar">
     <!-- 功能按钮组 -->
     <div class="rt-btn" onclick="openSystemConfig()" title="系统配置"><i class="fa-solid fa-gear"></i></div>
@@ -22,13 +22,12 @@
     <button type="button" class="rt-btn" onclick="openDownloadDirectory()" title="打开下载目录" aria-label="打开下载目录">
         <i class="fa-solid fa-folder-open"></i>
     </button>
-    <div class="rt-btn" onclick="openLocalMusicPage()" title="本地音乐"><i class="fa-solid fa-folder-plus"></i></div>
     <button type="button" id="download-records-button" class="rt-btn rt-btn-download-records" onclick="openDownloadRecordsModal()" title="下载管理" aria-label="下载管理">
         <i class="fa-solid fa-clock-rotate-left"></i>
         <span class="rt-download-records-dot" aria-hidden="true"></span><span id="download-queue-badge" class="queue-badge" hidden></span>
     </button>
 
-    {{ if or (gt .TotalPages 1) (eq .SearchType "local_music") }}
+    {{ if gt .TotalPages 1 }}
     <div class="rt-separator"></div>
 
     <!-- 翻页按钮组 -->
@@ -49,8 +48,6 @@
     {{template "playlist_categories" .}}
 
     {{template "toplists" .}}
-
-    {{template "playlist_source_tabs" .}}
 
     {{template "playlist_grid" .}}
 

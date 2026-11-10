@@ -13,7 +13,7 @@ func TestBatchDownloadEnqueuesDurableTasks(t *testing.T) {
 	appJS := string(appContent)
 
 	start := strings.Index(appJS, "async function batchDownload()")
-	end := strings.Index(appJS, "async function deleteLocalMusic(")
+	end := strings.Index(appJS, "async function batchSwitchSource(")
 	if start < 0 || end <= start {
 		t.Fatal("could not isolate batchDownload implementation")
 	}

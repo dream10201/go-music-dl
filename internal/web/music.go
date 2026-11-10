@@ -62,7 +62,6 @@ func importCollectionFromQuery(c *gin.Context, contentType string, source string
 		ExternalID:  externalID,
 		Link:        link,
 		ContentType: contentType,
-		HoverText:   importCollectionHoverText(contentType),
 	}
 }
 
@@ -131,7 +130,7 @@ type playlistCategoryCurrent struct {
 func playlistCategorySourcesFromQuery(c *gin.Context) []string {
 	requested := c.QueryArray("sources")
 	if len(requested) == 0 {
-		return core.GetPlaylistCategorySourceNames()
+		return defaultSourcesForSearchType("playlist")
 	}
 
 	supported := make(map[string]bool)
@@ -150,7 +149,7 @@ func playlistCategorySourcesFromQuery(c *gin.Context) []string {
 		sources = append(sources, source)
 	}
 	if len(sources) == 0 {
-		return core.GetPlaylistCategorySourceNames()
+		return defaultSourcesForSearchType("playlist")
 	}
 	return sources
 }
@@ -247,98 +246,6 @@ func buildPlaylistCategoryPageSource(source string, categories []model.PlaylistC
 	}
 }
 
-type playlistSourceTab struct {
-	Source    string
-	Name      string
-	Count     int
-	Playlists []model.Playlist
-	Error     string
-}
-
-type playlistSourceTabsData struct {
-	ID       string
-	Icon     string
-	Title    string
-	Subtitle string
-	Empty    string
-	Tabs     []playlistSourceTab
-}
-
-func filterAvailableSources(requested, supported []string) []string {
-	allowed := make(map[string]bool, len(supported))
-	for _, source := range supported {
-		allowed[strings.TrimSpace(source)] = true
-	}
-	seen := make(map[string]bool)
-	result := make([]string, 0, len(requested))
-	for _, source := range requested {
-		source = strings.TrimSpace(source)
-		if source == "" || !allowed[source] || seen[source] {
-			continue
-		}
-		seen[source] = true
-		result = append(result, source)
-	}
-	if len(result) == 0 {
-		return append([]string(nil), supported...)
-	}
-	return result
-}
-
-func loadPlaylistSourceTabs(sources []string, fetcher func(string) ([]model.Playlist, error)) ([]playlistSourceTab, string) {
-	type tabResult struct {
-		source    string
-		playlists []model.Playlist
-		err       error
-	}
-
-	results := make(map[string]tabResult, len(sources))
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	for _, src := range sources {
-		wg.Add(1)
-		go func(s string) {
-			defer wg.Done()
-			pls, err := fetcher(s)
-			for i := range pls {
-				pls[i].Source = s
-			}
-			mu.Lock()
-			results[s] = tabResult{source: s, playlists: pls, err: err}
-			mu.Unlock()
-		}(src)
-	}
-	wg.Wait()
-
-	tabs := make([]playlistSourceTab, 0, len(sources))
-	failed := make([]string, 0)
-	for _, src := range sources {
-		res, ok := results[src]
-		if !ok {
-			continue
-		}
-		tab := playlistSourceTab{
-			Source:    src,
-			Name:      core.GetSourceDescription(src),
-			Count:     len(res.playlists),
-			Playlists: res.playlists,
-		}
-		if res.err != nil {
-			tab.Error = res.err.Error()
-			failed = append(failed, tab.Name)
-		}
-		tabs = append(tabs, tab)
-	}
-
-	errMsg := ""
-	if len(failed) > 0 && len(failed) == len(tabs) {
-		errMsg = "全部来源加载失败：" + strings.Join(failed, "、")
-	} else if len(failed) > 0 {
-		errMsg = "部分来源加载失败：" + strings.Join(failed, "、")
-	}
-	return tabs, errMsg
-}
-
 func playlistCategoryPlaylistsURL(source string, category model.PlaylistCategory) string {
 	values := url.Values{}
 	values.Set("source", source)
@@ -381,7 +288,7 @@ type topListCurrent struct {
 func topListSourcesFromQuery(c *gin.Context) []string {
 	requested := c.QueryArray("sources")
 	if len(requested) == 0 {
-		return core.GetTopListSourceNames()
+		return defaultSourcesForSearchType("playlist")
 	}
 
 	supported := make(map[string]bool)
@@ -400,7 +307,7 @@ func topListSourcesFromQuery(c *gin.Context) []string {
 		sources = append(sources, source)
 	}
 	if len(sources) == 0 {
-		return core.GetTopListSourceNames()
+		return defaultSourcesForSearchType("playlist")
 	}
 	return sources
 }
@@ -660,54 +567,14 @@ func inspectResolutionFailure(err error) gin.H {
 func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 	api.GET("/", func(c *gin.Context) {
-		renderIndex(c, nil, nil, "", nil, "", "song", "", "", "", false, "", nil)
-	})
-
-	api.GET("/recommend", func(c *gin.Context) {
-		sources := filterAvailableSources(c.QueryArray("sources"), core.GetRecommendSourceNames())
-		tabs, errMsg := loadPlaylistSourceTabs(sources, func(src string) ([]model.Playlist, error) {
-			fn := core.GetRecommendFunc(src)
-			if fn == nil {
-				return nil, fmt.Errorf("该源不支持推荐歌单")
-			}
-			return fn()
-		})
-		c.Set("PlaylistSourceTabs", playlistSourceTabsData{
-			ID:       "recommend",
-			Icon:     "fa-fire",
-			Title:    "每日推荐歌单",
-			Subtitle: "按渠道查看各平台为你推荐的歌单。",
-			Empty:    "暂无推荐歌单。",
-			Tabs:     tabs,
-		})
-		renderIndex(c, nil, nil, "每日推荐", sources, errMsg, "playlist", "", "", "", false, "", nil)
-	})
-
-	api.GET("/user_playlists", func(c *gin.Context) {
-		sources := filterAvailableSources(c.QueryArray("sources"), core.GetUserPlaylistSourceNames())
-		tabs, errMsg := loadPlaylistSourceTabs(sources, func(src string) ([]model.Playlist, error) {
-			fn := core.GetUserPlaylistsFunc(src)
-			if fn == nil {
-				return nil, fmt.Errorf("该源不支持个人歌单")
-			}
-			return fn(1, 50)
-		})
-		c.Set("PlaylistSourceTabs", playlistSourceTabsData{
-			ID:       "user-playlists",
-			Icon:     "fa-heart",
-			Title:    "我收藏的歌单",
-			Subtitle: "查看已登录平台中你创建和收藏的歌单，未登录的渠道请先在设置中扫码登录。",
-			Empty:    "该渠道暂无个人歌单，或未登录。",
-			Tabs:     tabs,
-		})
-		renderIndex(c, nil, nil, "我的歌单", sources, errMsg, "playlist", "", "", "", false, "", nil)
+		renderIndex(c, nil, nil, "", nil, "", "song", "", nil)
 	})
 
 	api.GET("/playlist_categories", func(c *gin.Context) {
 		sources := playlistCategorySourcesFromQuery(c)
 		categorySources, errMsg := loadPlaylistCategoryPageSources(sources)
 		c.Set("PlaylistCategorySources", categorySources)
-		renderIndex(c, nil, nil, "", sources, errMsg, "playlist", "", "", "", false, "", nil)
+		renderIndex(c, nil, nil, "", sources, errMsg, "playlist", "", nil)
 	})
 
 	api.GET("/category_playlists", func(c *gin.Context) {
@@ -723,7 +590,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 		fn := core.GetCategoryPlaylistsFunc(source)
 		if source == "" || fn == nil {
-			renderIndex(c, nil, nil, "", nil, "该源不支持歌单分类", "playlist", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, "", nil, "该源不支持歌单分类", "playlist", "", nil)
 			return
 		}
 
@@ -744,14 +611,14 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			CategoryID:   categoryID,
 			CategoryName: categoryName,
 		})
-		renderIndex(c, nil, playlists, sourceName+" · "+categoryName, []string{source}, errMsg, "playlist", "", "", "", false, "", nil)
+		renderIndex(c, nil, playlists, sourceName+" · "+categoryName, []string{source}, errMsg, "playlist", "", nil)
 	})
 
 	api.GET("/toplists", func(c *gin.Context) {
 		sources := topListSourcesFromQuery(c)
 		topListSources, errMsg := loadTopListPageSources(sources)
 		c.Set("TopListSources", topListSources)
-		renderIndex(c, nil, nil, "", sources, errMsg, "playlist", "", "", "", false, "", nil)
+		renderIndex(c, nil, nil, "", sources, errMsg, "playlist", "", nil)
 	})
 
 	api.GET("/toplist_songs", func(c *gin.Context) {
@@ -762,13 +629,13 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			topListName = topListID
 		}
 		if source == "" || topListID == "" {
-			renderIndex(c, nil, nil, "", nil, "缺少参数", "playlist", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, "", nil, "缺少参数", "playlist", "", nil)
 			return
 		}
 
 		fn := core.GetTopListSongsFunc(source)
 		if fn == nil {
-			renderIndex(c, nil, nil, "", nil, "该源不支持排行榜", "playlist", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, "", nil, "该源不支持排行榜", "playlist", "", nil)
 			return
 		}
 
@@ -791,7 +658,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			TopListName:     topListName,
 			UpdateFrequency: strings.TrimSpace(c.Query("update_frequency")),
 		})
-		renderIndex(c, songs, nil, "", []string{source}, errMsg, "playlist", topListLink, "", "", false, "", importCollection)
+		renderIndex(c, songs, nil, "", []string{source}, errMsg, "playlist", topListLink, importCollection)
 	})
 
 	api.GET("/search", func(c *gin.Context) {
@@ -804,19 +671,19 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		}
 		result := runSearch(c, keyword, searchType, exactArtist, sources)
 		c.Set("IsSearchResults", true)
-		renderIndex(c, result.Songs, result.Playlists, keyword, sources, result.ErrorMsg, result.SearchType, "", "", "", false, "", result.ImportCollection)
+		renderIndex(c, result.Songs, result.Playlists, keyword, sources, result.ErrorMsg, result.SearchType, "", result.ImportCollection)
 	})
 
 	api.GET("/playlist", func(c *gin.Context) {
 		id := c.Query("id")
 		src := c.Query("source")
 		if id == "" || src == "" {
-			renderIndex(c, nil, nil, "", nil, "缺少参数", "song", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, "", nil, "缺少参数", "song", "", nil)
 			return
 		}
 		fn := core.GetPlaylistDetailFunc(src)
 		if fn == nil {
-			renderIndex(c, nil, nil, "", nil, "该源不支持查看歌单详情", "song", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, "", nil, "该源不支持查看歌单详情", "song", "", nil)
 			return
 		}
 		songs, err := fn(id)
@@ -829,19 +696,19 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			playlistLink = link
 		}
 		importCollection := importCollectionFromQuery(c, collectionContentPlaylist, src, id, playlistLink, len(songs))
-		renderIndex(c, songs, nil, "", []string{src}, errMsg, "playlist", playlistLink, "", "", false, "", importCollection)
+		renderIndex(c, songs, nil, "", []string{src}, errMsg, "playlist", playlistLink, importCollection)
 	})
 
 	api.GET("/album", func(c *gin.Context) {
 		id := c.Query("id")
 		src := c.Query("source")
 		if id == "" || src == "" {
-			renderIndex(c, nil, nil, "", nil, "缺少参数", "album", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, "", nil, "缺少参数", "album", "", nil)
 			return
 		}
 		fn := core.GetAlbumDetailFunc(src)
 		if fn == nil {
-			renderIndex(c, nil, nil, "", nil, "该源不支持查看专辑详情", "album", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, "", nil, "该源不支持查看专辑详情", "album", "", nil)
 			return
 		}
 		songs, err := fn(id)
@@ -851,7 +718,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		}
 		albumLink := core.GetOriginalLink(src, id, "album")
 		importCollection := importCollectionFromQuery(c, collectionContentAlbum, src, id, albumLink, len(songs))
-		renderIndex(c, songs, nil, "", []string{src}, errMsg, "album", albumLink, "", "", false, "", importCollection)
+		renderIndex(c, songs, nil, "", []string{src}, errMsg, "album", albumLink, importCollection)
 	})
 
 	api.GET("/album_jump", func(c *gin.Context) {
@@ -859,23 +726,23 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		artist := strings.TrimSpace(c.Query("artist"))
 		src := strings.TrimSpace(c.Query("source"))
 		if name == "" || src == "" {
-			renderIndex(c, nil, nil, "", nil, "缺少参数", "album", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, "", nil, "缺少参数", "album", "", nil)
 			return
 		}
 
 		fn := core.GetAlbumSearchFunc(src)
 		if fn == nil {
-			renderIndex(c, nil, nil, name, []string{src}, "该源不支持查看专辑详情", "album", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, name, []string{src}, "该源不支持查看专辑详情", "album", "", nil)
 			return
 		}
 
 		albums, err := fn(name)
 		if err != nil {
-			renderIndex(c, nil, nil, name, []string{src}, fmt.Sprintf("获取专辑失败: %v", err), "album", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, name, []string{src}, fmt.Sprintf("获取专辑失败: %v", err), "album", "", nil)
 			return
 		}
 		if len(albums) == 0 {
-			renderIndex(c, nil, nil, name, []string{src}, "未找到匹配的专辑", "album", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, name, []string{src}, "未找到匹配的专辑", "album", "", nil)
 			return
 		}
 
@@ -885,7 +752,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 		selected := pickBestAlbumMatch(name, artist, albums)
 		if selected == nil || strings.TrimSpace(selected.ID) == "" {
-			renderIndex(c, nil, nil, name, []string{src}, "未找到可跳转的专辑详情", "album", "", "", "", false, "", nil)
+			renderIndex(c, nil, nil, name, []string{src}, "未找到可跳转的专辑详情", "album", "", nil)
 			return
 		}
 
@@ -898,12 +765,6 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 		src := c.Query("source")
 		durStr := c.Query("duration")
 		extra := parseSongExtraQuery(c.Query("extra"))
-
-		if isLocalMusicSource(src) {
-			payload, _ := inspectLocalMusicFile(id, durStr)
-			c.JSON(200, payload)
-			return
-		}
 
 		var urlStr string
 		var err error
@@ -1059,30 +920,17 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			artist = "Unknown"
 		}
 
-		if isLocalMusicSource(source) {
-			serveLocalMusicDownload(c, id, saveLocal)
-			return
-		}
-
 		settings := core.GetWebSettings()
 		tempSong := &model.Song{ID: id, Source: source, Name: name, Artist: artist, Album: album, Cover: coverURL, Extra: extra}
 
 		if saveLocal {
 			// 加载 SQLite 去重集合。
 			allSongsSet, _ := core.LoadDownloadDedupSet()
-			// 旧记录只存了歌名+歌手、没有文件路径，先用本地曲库索引反查一次：
-			// 文件已经被删掉（比如在 NAS 后台直接删）就回收记录，让这次下载正常进行。
-			resolveLegacyDedupForSong(allSongsSet, tempSong)
-
 			result, err := core.DownloadWithDedupCheckWithTemplate(tempSong, settings.DownloadDir, embedMeta, embedMeta, settings.DownloadFilenameTemplate, allSongsSet)
 			if err != nil {
 				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 				return
 			}
-			if !result.Skipped {
-				indexSavedLocalMusicFile(result, settings.DownloadDir)
-			}
-
 			webdavError := ""
 			if !result.Skipped && core.WebDAVConfigured(settings) {
 				if err := core.UploadSongToWebDAV(settings, result.Filename, result.Data); err != nil {
@@ -1297,11 +1145,6 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 			return
 		}
 
-		if isLocalMusicSource(song.Source) {
-			serveLocalMusicLyric(c, song, true, saveLocal)
-			return
-		}
-
 		fn := core.GetLyricFunc(song.Source)
 		if fn == nil {
 			c.String(404, "No support")
@@ -1379,11 +1222,6 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 	api.GET("/lyric", func(c *gin.Context) {
 		song := lyricSongFromQuery(c)
-		if isLocalMusicSource(song.Source) {
-			serveLocalMusicLyric(c, song, false)
-			return
-		}
-
 		fn := core.GetLyricFunc(song.Source)
 		if fn != nil {
 			lrc, _ := fn(song)
@@ -1574,7 +1412,7 @@ func saveWebAssetRelativeToLocal(filename string, data []byte) (string, string, 
 		return "", "", fmt.Errorf("invalid relative filename")
 	}
 	savedPath := filepath.Join(targetDir, savedFilename)
-	if !isPathInside(targetDir, savedPath) {
+	if !filepath.IsLocal(savedFilename) {
 		return "", "", fmt.Errorf("invalid relative filename")
 	}
 	if err := os.MkdirAll(filepath.Dir(savedPath), 0755); err != nil {
@@ -1769,9 +1607,6 @@ func isSwitchSourceAllowed(source string, current string) bool {
 	if source == "soda" || source == "fivesing" {
 		return false
 	}
-	if isLocalMusicSource(source) {
-		return false
-	}
 	return true
 }
 
@@ -1946,9 +1781,6 @@ func formatSearchSourceErrors(
 	parts := make([]string, 0, len(errorsBySource))
 	seen := make(map[string]struct{}, len(sources))
 	for _, source := range sources {
-		if isLocalMusicSource(source) {
-			continue
-		}
 		if _, exists := seen[source]; exists {
 			continue
 		}
@@ -2051,9 +1883,6 @@ func runSearch(c *gin.Context, keyword, searchType, exactArtist string, sources 
 		sourceErrors := make(map[string]string)
 
 		for _, src := range sources {
-			if isLocalMusicSource(src) {
-				continue
-			}
 			wg.Add(1)
 			go func(s string) {
 				defer wg.Done()
@@ -2125,23 +1954,6 @@ func runSearch(c *gin.Context, keyword, searchType, exactArtist string, sources 
 		}
 		wg.Wait()
 		errorMsg = formatSearchSourceErrors(sources, sourceErrors)
-
-		if searchType == "song" && containsLocalSource(sources) {
-			localSongs := localMusicSearchSongs(keyword, 200)
-			if len(localSongs) > 0 {
-				mu.Lock()
-				allSongs = append(allSongs, localSongs...)
-				mu.Unlock()
-			}
-		}
-		if searchType == "playlist" && containsLocalSource(sources) {
-			localPlaylists := localCollectionSearchPlaylists(keyword)
-			if len(localPlaylists) > 0 {
-				mu.Lock()
-				allPlaylists = append(allPlaylists, localPlaylists...)
-				mu.Unlock()
-			}
-		}
 	}
 
 	if searchType == "song" && exactArtist != "" && len(allSongs) > 0 {

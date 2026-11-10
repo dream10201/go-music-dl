@@ -5,13 +5,12 @@ import (
 	"testing"
 )
 
-func TestFormatSearchSourceErrorsUsesRequestedOrderAndSkipsLocal(t *testing.T) {
+func TestFormatSearchSourceErrorsUsesRequestedOrder(t *testing.T) {
 	got := formatSearchSourceErrors(
-		[]string{"spotify", "local", "qq", "spotify"},
+		[]string{"spotify", "qq", "spotify"},
 		map[string]string{
 			"qq":      "qq timeout",
 			"spotify": "anonymous web player unavailable",
-			"local":   "local scan failed",
 		},
 	)
 	want := "部分平台搜索失败: Spotify: anonymous web player unavailable；QQ音乐: qq timeout"

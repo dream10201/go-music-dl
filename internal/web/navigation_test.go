@@ -50,7 +50,7 @@ func TestRenderIndexPlaylistCardsUseAjaxNavigation(t *testing.T) {
 				Source:     "qq",
 				Cover:      "https://example.com/cover.jpg",
 			},
-		}, "", []string{"qq"}, "", collectionContentPlaylist, "", "", "", false, "", nil)
+		}, "", []string{"qq"}, "", collectionContentPlaylist, "", nil)
 	})
 
 	req := httptest.NewRequest("GET", RoutePrefix, nil)
@@ -78,7 +78,7 @@ func TestRemotePlaylistDetailKeepsGlobalRightToolbar(t *testing.T) {
 	router := gin.New()
 	router.SetHTMLTemplate(newTestTemplate(t))
 	router.GET(RoutePrefix+"/playlist", func(c *gin.Context) {
-		renderIndex(c, []model.Song{{ID: "song-1", Name: "Song One", Artist: "Artist", Source: "qq"}}, nil, "", []string{"qq"}, "", "playlist", "", "", "", false, "", nil)
+		renderIndex(c, []model.Song{{ID: "song-1", Name: "Song One", Artist: "Artist", Source: "qq"}}, nil, "", []string{"qq"}, "", "playlist", "", nil)
 	})
 
 	req := httptest.NewRequest("GET", RoutePrefix+"/playlist", nil)
@@ -107,14 +107,12 @@ func TestDetailPagePathDetection(t *testing.T) {
 		"/music/playlist/",
 		"/album",
 		"/music/album/",
-		"/collection",
-		"/music/collection/",
 	} {
 		if !isDetailPagePath(requestPath) {
 			t.Fatalf("isDetailPagePath(%q) = false, want true", requestPath)
 		}
 	}
-	for _, requestPath := range []string{"/", "/search", "/playlist_categories", "/toplists", "/toplist_songs", "/my_collections", "/local_music_page"} {
+	for _, requestPath := range []string{"/", "/search", "/playlist_categories", "/toplists", "/toplist_songs"} {
 		if isDetailPagePath(requestPath) {
 			t.Fatalf("isDetailPagePath(%q) = true, want false", requestPath)
 		}
@@ -131,7 +129,7 @@ func TestRightToolbarPaginationMatchesRenderedPageCount(t *testing.T) {
 		if c.Query("many") == "1" {
 			songs = append(songs, model.Song{ID: "song-2", Name: "Two", Artist: "Artist", Source: "qq"})
 		}
-		renderIndex(c, songs, nil, "", []string{"qq"}, "", "song", "", "", "", false, "", nil)
+		renderIndex(c, songs, nil, "", []string{"qq"}, "", "song", "", nil)
 	})
 
 	singleReq := httptest.NewRequest("GET", RoutePrefix+"?page_size=1", nil)
@@ -214,23 +212,15 @@ func TestAppJSIncludesAjaxNavigationEntryPoints(t *testing.T) {
 			t.Fatalf("app.js should not redeclare deprecated helper %q", removed)
 		}
 	}
-	if !strings.Contains(js, "function initializeLocalMusicPage(root = document)") {
-		t.Fatal("app.js missing async local music page initializer")
-	}
 	for _, want := range []string{
 		"function toggleSongListTools(event)",
 		"const DOWNLOAD_RECORDS_PAGE_SIZE = 20;",
-		"const DUPLICATE_GROUP_PAGE_SIZE = 10;",
 		"function renderUtilityModalPagination(page, totalPages, onPageChange)",
 		"loadDownloadRecordsPage",
-		"modal-overlay utility-modal-overlay is-open",
 	} {
 		if !strings.Contains(js, want) {
 			t.Fatalf("app.js missing %q", want)
 		}
-	}
-	if !strings.Contains(js, "offset: String(offset)") {
-		t.Fatal("app.js missing paged local music API request")
 	}
 }
 
@@ -542,8 +532,8 @@ func TestInspectQueueUsesAdaptivePerSourceLimitingAndIsCancelable(t *testing.T) 
 			t.Fatalf("app.js missing inspect queue invariant %q", want)
 		}
 	}
-	if got := strings.Count(js, "cancelPendingSongInspections();"); got < 2 {
-		t.Fatalf("cancelPendingSongInspections call count = %d, want at least 2", got)
+	if got := strings.Count(js, "cancelPendingSongInspections();"); got < 1 {
+		t.Fatalf("cancelPendingSongInspections call count = %d, want at least 1", got)
 	}
 }
 

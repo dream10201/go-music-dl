@@ -41,17 +41,10 @@ func TestPlaceholderForSearchType(t *testing.T) {
 }
 
 func TestDefaultSourcesForSearchType(t *testing.T) {
-	wantAlbumSources := core.GetAlbumSourceNames()
-	if got := defaultSourcesForSearchType(searchTypeAlbum); !reflect.DeepEqual(got, wantAlbumSources) {
-		t.Fatalf("defaultSourcesForSearchType(album) = %v, want %v", got, wantAlbumSources)
-	}
-
-	if got := defaultSourcesForSearchType(searchTypePlaylist); len(got) == 0 {
-		t.Fatal("defaultSourcesForSearchType(playlist) returned empty sources")
-	}
-
-	if got := defaultSourcesForSearchType(searchTypeSong); len(got) == 0 {
-		t.Fatal("defaultSourcesForSearchType(song) returned empty sources")
+	for _, searchType := range []string{searchTypeSong, searchTypePlaylist, searchTypeAlbum} {
+		if got, want := defaultSourcesForSearchType(searchType), []string{"migu"}; !reflect.DeepEqual(got, want) {
+			t.Fatalf("defaultSourcesForSearchType(%s) = %v, want %v", searchType, got, want)
+		}
 	}
 }
 

@@ -7,22 +7,24 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
 	"github.com/guohuiyuan/go-music-dl/lib/model"
-	"gorm.io/gorm"
 )
+
+func initConfigDBForTest(t *testing.T) {
+	t.Helper()
+	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(t.TempDir(), "data", "settings.db"))
+	_ = core.CloseConfigDB()
+	t.Cleanup(func() { _ = core.CloseConfigDB() })
+}
 
 func setupContainerTests(t *testing.T) (*gin.Engine, *core.DownloadQueue) {
 	t.Helper()
-	if err := core.CloseConfigDB(); err != nil {
-		t.Fatal(err)
-	}
-	initCollectionDBForTest(t)
+	initConfigDBForTest(t)
 	t.Cleanup(func() {
 		if err := core.CloseConfigDB(); err != nil {
 			t.Error(err)
@@ -32,7 +34,8 @@ func setupContainerTests(t *testing.T) (*gin.Engine, *core.DownloadQueue) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r := newCollectionTestRouter()
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
 	RegisterDownloadQueueRoutes(r.Group(RoutePrefix), q)
 	return r, q
 }
@@ -82,7 +85,7 @@ func TestDownloadWholePlaylistHasNoPageOr2000SongLimit(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 }
-func TestDownloadWholeAlbumAndImportedLocalAlbum(t *testing.T) {
+func TestDownloadWholeAlbum(t *testing.T) {
 	r, q := setupContainerTests(t)
 	original := albumDetailFuncProvider
 	t.Cleanup(func() { albumDetailFuncProvider = original })
@@ -95,37 +98,8 @@ func TestDownloadWholeAlbumAndImportedLocalAlbum(t *testing.T) {
 	if w.Code != 202 {
 		t.Fatal(w.Code, w.Body.String())
 	}
-	imported := Collection{Name: "Imported Album", Kind: collectionKindImported, ContentType: collectionContentAlbum, Source: "qq", ExternalID: "album2"}
-	if err := db.Create(&imported).Error; err != nil {
-		t.Fatal(err)
-	}
-	w = containerRequest(r, "/api/downloads/queue/container", downloadContainerRequest{RequestID: "imported", Kind: "collection", ID: fmt.Sprint(imported.ID)})
-	if w.Code != 202 {
-		t.Fatal(w.Code, w.Body.String())
-	}
 	_, total, _, err := q.List(1, 50, "")
-	if err != nil || total != 4 {
-		t.Fatal(total, err)
-	}
-}
-func TestDownloadManualCollectionSkipsLocalAudioAndIncludesAllPages(t *testing.T) {
-	r, q := setupContainerTests(t)
-	col := Collection{Name: "Manual"}
-	if err := db.Create(&col).Error; err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < 125; i++ {
-		if err := db.Create(&SavedSong{CollectionID: col.ID, SongID: fmt.Sprint(i), Source: "kuwo", Name: fmt.Sprint(i)}).Error; err != nil {
-			t.Fatal(err)
-		}
-	}
-	db.Create(&SavedSong{CollectionID: col.ID, SongID: "existing-local", Source: "local", Name: "Local"})
-	w := containerRequest(r, "/api/downloads/queue/container", downloadContainerRequest{RequestID: "manual", Kind: "collection", ID: fmt.Sprint(col.ID)})
-	if w.Code != 202 || !bytes.Contains(w.Body.Bytes(), []byte(`"skipped_local":1`)) {
-		t.Fatal(w.Code, w.Body.String())
-	}
-	_, total, _, err := q.List(1, 50, "")
-	if err != nil || total != 125 {
+	if err != nil || total != 2 {
 		t.Fatal(total, err)
 	}
 }
@@ -253,97 +227,16 @@ func TestDownloadWholeCollectionUIReportsSkippedInvalidSongs(t *testing.T) {
 	}
 }
 
-func TestDeleteCollectionRemovesReferencesAndKeepsFilesAndQueue(t *testing.T) {
-	r, q := setupContainerTests(t)
-	col := Collection{Name: "Disposable"}
-	db.Create(&col)
-	db.Create(&SavedSong{CollectionID: col.ID, SongID: "song", Source: "kuwo", Name: "Song"})
-	if _, err := q.Enqueue("saved-queue", []core.DownloadTaskInput{{Song: model.Song{ID: "song", Source: "kuwo", Name: "Song"}, Directory: t.TempDir()}}); err != nil {
-		t.Fatal(err)
-	}
-	audio := filepath.Join(t.TempDir(), "audio.mp3")
-	if err := os.WriteFile(audio, []byte("audio"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	deleteRequest := func(id, origin string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodDelete, RoutePrefix+"/collections/"+id, nil)
-		req.Header.Set("X-Requested-With", "XMLHttpRequest")
-		req.Header.Set("Origin", origin)
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
-		return w
-	}
-	if w := deleteRequest(fmt.Sprint(col.ID), "https://other.example"); w.Code != 403 {
-		t.Fatal(w.Code)
-	}
-	if w := deleteRequest("invalid", ""); w.Code != 400 {
-		t.Fatal(w.Code)
-	}
-	if w := deleteRequest(fmt.Sprint(col.ID), ""); w.Code != 200 {
-		t.Fatal(w.Code, w.Body.String())
-	}
-	var count int64
-	db.Model(&SavedSong{}).Where("collection_id = ?", col.ID).Count(&count)
-	if count != 0 {
-		t.Fatal("orphan saved songs", count)
-	}
-	db.Model(&Collection{}).Where("id = ?", col.ID).Count(&count)
-	if count != 0 {
-		t.Fatal("collection still present")
-	}
-	_, total, _, err := q.List(1, 50, "")
-	if err != nil || total != 1 {
-		t.Fatal("queue modified", total, err)
-	}
-	if data, err := os.ReadFile(audio); err != nil || string(data) != "audio" {
-		t.Fatal("audio changed", err)
-	}
-	if w := deleteRequest(fmt.Sprint(col.ID), ""); w.Code != 404 {
-		t.Fatal(w.Code)
-	}
-}
-func TestDeleteCollectionRollsBackSavedSongsOnFailure(t *testing.T) {
-	r, _ := setupContainerTests(t)
-	col := Collection{Name: "Rollback"}
-	db.Create(&col)
-	db.Create(&SavedSong{CollectionID: col.ID, SongID: "keep", Source: "kuwo"})
-	name := "test:fail_collection_delete"
-	if err := db.Callback().Delete().Before("gorm:delete").Register(name, func(tx *gorm.DB) {
-		if tx.Statement.Table == "collections" {
-			_ = tx.AddError(errors.New("simulated failure"))
-		}
-	}); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := db.Callback().Delete().Remove(name); err != nil {
-			t.Error(err)
-		}
-	})
-	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("%s/collections/%d", RoutePrefix, col.ID), nil)
-	req.Header.Set("X-Requested-With", "XMLHttpRequest")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	if w.Code != 500 {
-		t.Fatal(w.Code, w.Body.String())
-	}
-	var count int64
-	db.Model(&SavedSong{}).Where("collection_id = ?", col.ID).Count(&count)
-	if count != 1 {
-		t.Fatal("saved songs not restored", count)
-	}
-}
-
 func TestWholeDownloadButtonsRenderOnCardsAndDetail(t *testing.T) {
 	for _, kind := range []string{"playlist", "album"} {
 		t.Run(kind, func(t *testing.T) {
 			r, _ := setupContainerTests(t)
 			r.SetHTMLTemplate(newTestTemplate(t))
 			r.GET("/test-card", func(c *gin.Context) {
-				renderIndex(c, nil, []model.Playlist{{ID: "remote1", Source: "kuwo", Name: "Container", TrackCount: 125}}, "", []string{"kuwo"}, "", kind, "", "", "", false, "", nil)
+				renderIndex(c, nil, []model.Playlist{{ID: "remote1", Source: "kuwo", Name: "Container", TrackCount: 125}}, "", []string{"kuwo"}, "", kind, "", nil)
 			})
 			r.GET("/test-detail", func(c *gin.Context) {
-				renderIndex(c, []model.Song{{ID: "s1", Source: "kuwo", Name: "Song"}}, nil, "", []string{"kuwo"}, "", kind, "", "", "", false, "", &importCollectionMeta{Enabled: true, ContentType: kind, ExternalID: "remote1", Source: "kuwo"})
+				renderIndex(c, []model.Song{{ID: "s1", Source: "kuwo", Name: "Song"}}, nil, "", []string{"kuwo"}, "", kind, "", &importCollectionMeta{Enabled: true, ContentType: kind, ExternalID: "remote1", Source: "kuwo"})
 			})
 			for _, path := range []string{"/test-card", "/test-detail"} {
 				w := httptest.NewRecorder()

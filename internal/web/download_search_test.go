@@ -27,7 +27,7 @@ func TestSearchDownloadDryRunThenEnqueueUsesCachedResult(t *testing.T) {
 	for i := 0; i < 2500; i++ {
 		songs = append(songs, model.Song{ID: "id" + strconv.Itoa(i), Source: "migu", Name: "song"})
 	}
-	songs = append(songs, model.Song{ID: "local1", Source: "local"}, model.Song{Source: "migu"})
+	songs = append(songs, model.Song{Source: "migu"})
 	token := cacheSearchDownloadResult(searchResult{SearchType: "song", Songs: songs})
 
 	w := containerRequest(r, "/api/downloads/queue/search", map[string]any{"q": "test", "type": "song", "dry_run": true, "token": token})
@@ -37,11 +37,10 @@ func TestSearchDownloadDryRunThenEnqueueUsesCachedResult(t *testing.T) {
 	var preview struct {
 		Token          string `json:"token"`
 		Songs          int    `json:"songs"`
-		SkippedLocal   int    `json:"skipped_local"`
 		SkippedInvalid int    `json:"skipped_invalid"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &preview)
-	if preview.Songs != 2500 || preview.SkippedLocal != 1 || preview.SkippedInvalid != 1 || preview.Token == "" {
+	if preview.Songs != 2500 || preview.SkippedInvalid != 1 || preview.Token == "" {
 		t.Fatalf("unexpected preview: %+v", preview)
 	}
 	if _, ok := takeSearchDownloadResult(token); ok {
@@ -57,7 +56,7 @@ func TestSearchDownloadDryRunThenEnqueueUsesCachedResult(t *testing.T) {
 		Total int `json:"total"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &result)
-	if result.Added != 2500 || result.Total != 2502 {
+	if result.Added != 2500 || result.Total != 2501 {
 		t.Fatalf("unexpected result: %+v", result)
 	}
 	_, total, _, err := q.List(1, 50, "")
@@ -74,7 +73,6 @@ func TestContainerDownloadRequestKinds(t *testing.T) {
 	}{
 		{"album", model.Playlist{Source: "migu", ID: "1"}, collectionContentAlbum},
 		{"playlist", model.Playlist{Source: "migu", ID: "1"}, collectionContentPlaylist},
-		{"playlist", model.Playlist{Source: "local", ID: "7"}, "collection"},
 	}
 	for _, tc := range cases {
 		if got := containerDownloadRequest(tc.searchType, tc.playlist).Kind; got != tc.want {

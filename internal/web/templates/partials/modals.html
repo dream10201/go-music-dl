@@ -46,7 +46,7 @@
                         <span class="setting-switch" aria-hidden="true"></span>
                         <span class="setting-toggle-text">自动选择无效音源并批量换源</span>
                     </label>
-                    <p class="setting-hint">音乐列表检测完成后，会自动选中当前列表全部无效歌曲并执行批量换源，默认开启。</p>
+                    <p class="setting-hint">音乐列表检测完成后，会自动选中当前列表全部无效歌曲并执行批量换源，默认关闭。</p>
                 </div>
             </section>
 
@@ -185,7 +185,6 @@
                 </div>
                 <div class="cookie-list">
                     {{ range $source := .AllSources }}
-                    {{ if ne $source "local" }}
                     <div class="cookie-item">
                         <label>{{ $source }}</label>
                         <div class="cookie-input-row">
@@ -207,11 +206,8 @@
                         <p id="cookie-hint-{{$source}}" class="setting-hint cookie-source-hint">
                             手动获取：登录 <a href="{{.LoginURL}}" target="_blank" rel="noopener noreferrer">{{ index $.SourceDescriptions $source }}</a>，在开发者工具“网络”面板筛选 <code>{{.Domain}}</code> 的请求并复制完整 Cookie。{{.Hint}}
                         </p>
-                        {{ else }}
-                        <p id="cookie-hint-{{$source}}" class="setting-hint cookie-source-hint">本地音乐直接从下载目录读取文件，不需要 Cookie。</p>
                         {{ end }}
                     </div>
-                    {{ end }}
                     {{ end }}
                 </div>
                 <div class="settings-panel-subtitle">咪咕会员下载（账号 uid）</div>
@@ -285,49 +281,6 @@
     </div>
 </div>
 
-<div id="editCollectionModal" class="modal-overlay" style="z-index: 1005;">
-    <div class="modal" style="max-width: 400px;">
-        <div class="modal-header">
-            <h3 id="editColTitle">新建歌单</h3>
-            <div class="modal-close" onclick="document.getElementById('editCollectionModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
-        </div>
-        <div class="modal-body">
-            <input type="hidden" id="editColId">
-            <div class="cookie-item">
-                <label>歌单名称 <span style="color:#e53e3e;">*</span></label>
-                <input type="text" id="editColName" placeholder="例如: 睡前听的歌" maxlength="30">
-            </div>
-            <div class="cookie-item">
-                <label>描述</label>
-                <input type="text" id="editColDesc" placeholder="简单描述一下...">
-            </div>
-            <div class="cookie-item">
-                <label>封面图片 (URL)</label>
-                <input type="text" id="editColCover" placeholder="留空则自动生成随机封面">
-            </div>
-            <button type="button" class="btn-save" onclick="saveCollection()">保存歌单</button>
-        </div>
-    </div>
-</div>
-
-<div id="addToCollectionModal" class="modal-overlay" style="z-index: 1004;">
-    <div class="modal" style="max-width: 400px;">
-        <div class="modal-header">
-            <h3>收藏到我的歌单</h3>
-            <div class="modal-close" onclick="document.getElementById('addToCollectionModal').style.display='none'"><i class="fa-solid fa-xmark"></i></div>
-        </div>
-        <div class="modal-body">
-            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 14px; color: var(--text-sub);">选择或管理歌单</span>
-                <button class="btn-pill btn-pill-primary" style="padding: 6px 12px; font-size: 12px;" onclick="showEditCollectionModal()">
-                    <i class="fa-solid fa-plus"></i> 新建
-                </button>
-            </div>
-            <div id="addColList"></div>
-        </div>
-    </div>
-</div>
-<!-- 下载记录弹窗 -->
 <div id="downloadRecordsModal" class="modal-overlay utility-modal-overlay">
     <div class="modal utility-modal download-records-modal">
         <div class="modal-header">
@@ -375,9 +328,6 @@
                     </button>
                     <button type="button" class="btn-pill" onclick="openDownloadDirectory()">
                         <i class="fa-solid fa-folder-open"></i> 打开目录
-                    </button>
-                    <button type="button" class="btn-pill" onclick="openLocalMusicPage()">
-                        <i class="fa-solid fa-folder-plus"></i> 本地音乐
                     </button>
                     <button type="button" class="btn-pill btn-pill-danger" onclick="clearDownloadRecords()">
                         <i class="fa-solid fa-trash-can"></i> 清空记录

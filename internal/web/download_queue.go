@@ -72,8 +72,8 @@ func RegisterDownloadQueueRoutes(api *gin.RouterGroup, queue *core.DownloadQueue
 		settings := core.GetWebSettings()
 		inputs := make([]core.DownloadTaskInput, 0, len(req.Songs))
 		for _, s := range req.Songs {
-			if strings.TrimSpace(s.ID) == "" || strings.TrimSpace(s.Source) == "" || isLocalMusicSource(s.Source) {
-				c.JSON(400, gin.H{"error": "歌曲缺少 ID 或音源，或属于本地音乐"})
+			if strings.TrimSpace(s.ID) == "" || strings.TrimSpace(s.Source) == "" {
+				c.JSON(400, gin.H{"error": "歌曲缺少 ID 或音源"})
 				return
 			}
 			inputs = append(inputs, core.DownloadTaskInput{Song: model.Song{ID: s.ID, Source: s.Source, Name: s.Name, Artist: s.Artist, Album: s.Album, Cover: s.Cover, Extra: parseSongExtraQuery(s.Extra)}, Directory: core.DownloadDirOrDefault(settings.DownloadDir), FilenameTemplate: settings.DownloadFilenameTemplate, Embed: s.Embed})
@@ -205,7 +205,6 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 		return core.DownloadTaskResult{}, err
 	}
 	song := input.Song
-	resolveLegacyDedupForSong(index, &song)
 	result, err := core.DownloadWithDedupCheckWithTemplate(&song, input.Directory, input.Embed, input.Embed, input.FilenameTemplate, index)
 	if err != nil {
 		return core.DownloadTaskResult{}, err
@@ -215,7 +214,6 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 		outcome.Status = core.DownloadStatusSkipped
 		return outcome, nil
 	}
-	indexSavedLocalMusicFile(result, input.Directory)
 	settings := core.GetWebSettings()
 	if core.WebDAVConfigured(settings) {
 		if err := core.UploadSongToWebDAV(settings, result.Filename, result.Data); err != nil {

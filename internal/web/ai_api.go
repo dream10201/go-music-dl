@@ -48,8 +48,6 @@ func RegisterAIRoutes(api *gin.RouterGroup) {
 				"album":             core.GetAlbumSourceNames(),
 				"toplist":           core.GetTopListSourceNames(),
 				"playlist_category": core.GetPlaylistCategorySourceNames(),
-				"recommend":         core.GetRecommendSourceNames(),
-				"user_playlist":     core.GetUserPlaylistSourceNames(),
 			},
 			"endpoints": aiEndpointCatalog(basePath),
 		})
@@ -80,22 +78,6 @@ func aiEndpointCatalog(basePath string) []aiEndpoint {
 				"exact_artist": "optional exact artist filter for songs",
 			},
 			Returns: "html",
-		},
-		{
-			Group:       "discover",
-			Method:      http.MethodGet,
-			Path:        basePath + "/recommend",
-			Description: "Existing recommended playlist page.",
-			Params:      map[string]string{"sources": "optional repeated source names"},
-			Returns:     "html",
-		},
-		{
-			Group:       "discover",
-			Method:      http.MethodGet,
-			Path:        basePath + "/user_playlists",
-			Description: "Existing playlists created or collected by the configured platform accounts.",
-			Params:      map[string]string{"sources": "optional repeated source names"},
-			Returns:     "html",
 		},
 		{
 			Group:       "discover",
@@ -293,10 +275,10 @@ func aiEndpointCatalog(basePath string) []aiEndpoint {
 			Group:       "downloads",
 			Method:      http.MethodPost,
 			Path:        basePath + "/api/downloads/queue/container",
-			Description: "Existing route to enqueue a complete playlist, album, toplist, or collection.",
+			Description: "Existing route to enqueue a complete playlist, album, or toplist.",
 			Body: map[string]string{
 				"request_id": "required unique request id",
-				"kind":       "playlist, album, or collection",
+				"kind":       "playlist or album",
 				"id":         "required container id",
 				"source":     "required for platform containers",
 				"link":       "optional original link",
@@ -336,36 +318,6 @@ func aiEndpointCatalog(basePath string) []aiEndpoint {
 			Auth:        writeAuth,
 		},
 		{
-			Group:       "library",
-			Method:      http.MethodGet,
-			Path:        basePath + "/local_music",
-			Description: "Existing paginated local music index.",
-			Params: map[string]string{
-				"offset":        "optional, default 0",
-				"limit":         "optional page size",
-				"refresh":       "use 1 to rescan",
-				"force":         "use 1 to rescan",
-				"collection_id": "optional imported collection id",
-			},
-			Returns: "json",
-		},
-		{
-			Group:       "library",
-			Method:      http.MethodGet,
-			Path:        basePath + "/collections",
-			Description: "Existing local collection list.",
-			Params:      map[string]string{"include_imported": "optional 0 or 1"},
-			Returns:     "json",
-		},
-		{
-			Group:       "library",
-			Method:      http.MethodGet,
-			Path:        basePath + "/collections/{id}/songs",
-			Description: "Existing local collection song list.",
-			Params:      map[string]string{"id": "required collection id"},
-			Returns:     "json",
-		},
-		{
 			Group:       "system",
 			Method:      http.MethodGet,
 			Path:        basePath + "/healthz",
@@ -403,8 +355,6 @@ Discover:
 - Ranked songs: GET %[1]s/toplist_songs?source=...&toplist_id=...
 - Playlist categories: GET %[1]s/playlist_categories
 - Category playlists: GET %[1]s/category_playlists?source=...&category_id=...
-- Recommendations: GET %[1]s/recommend
-- Account playlists: GET %[1]s/user_playlists
 
 Details:
 - Playlist: GET %[1]s/playlist?id=...&source=...
@@ -419,15 +369,12 @@ Downloads:
 - Enqueue songs: POST %[1]s/api/downloads/queue
 - Enqueue a complete container: POST %[1]s/api/downloads/queue/container
 
-Library and health:
-- Local music: GET %[1]s/local_music?offset=0&limit=50
-- Local collections: GET %[1]s/collections
-- Collection songs: GET %[1]s/collections/{id}/songs
+Health:
 - Health: GET %[1]s/healthz
 
 Rules:
 - {base} defaults to /music. The runtime index is the source of truth.
-- Existing search, playlist, album, ranking, recommendation, and category routes return the normal rendered page.
+- Existing search, playlist, album, ranking, and category routes return the normal rendered page.
 - Preserve a song's extra object because some sources require it for downloads or lyrics.
 - Writes must send X-Requested-With: XMLHttpRequest.
 - Never expose cookies, login, or configuration routes to an AI client.

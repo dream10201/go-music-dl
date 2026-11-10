@@ -148,15 +148,8 @@ func collectionCountLabel(searchType string) string {
 	return "歌曲数"
 }
 
-func defaultSourcesForSearchType(searchType string) []string {
-	switch searchType {
-	case searchTypePlaylist:
-		return core.GetPlaylistSourceNames()
-	case searchTypeAlbum:
-		return core.GetAlbumSourceNames()
-	default:
-		return core.GetDefaultSourceNames()
-	}
+func defaultSourcesForSearchType(string) []string {
+	return []string{"migu"}
 }
 
 // --- 工厂函数 ---
