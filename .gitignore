@@ -12,7 +12,6 @@ data/
 winres/winres.json
 *.exe
 *.log
-extra-release-assets/
 __debug_bin*
 .env
 build_log.txt

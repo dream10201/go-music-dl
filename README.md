@@ -150,16 +150,7 @@ TUI 常用按键：
 
 ## GitHub Actions 自动构建
 
-本项目已配置 GitHub Actions 工作流。当推送代码并打上版本标签（如 `v1.0.0`）时，会自动触发 `.github/workflows/docker.yml`，构建跨平台镜像（支持 amd64 和 arm64）并推送到 DockerHub。
-
-**如果你 Fork 了本仓库并希望使用自己的构建流：**
-
-1. 在你的仓库 **Settings** -> **Secrets and variables** -> **Actions** 中添加：
-
-* `DOCKERHUB_USERNAME`: 你的 DockerHub 用户名
-* `DOCKERHUB_TOKEN`: 你的 DockerHub 访问令牌
-
-2. 将 `docker-compose.yml` 中的镜像地址修改为你自己的：`image: 你的用户名/go-music-dl:latest`
+本项目已配置 GitHub Actions 工作流。推送到 `main` 分支时，会自动触发 `.github/workflows/docker.yml`，构建 amd64 镜像并推送到 GHCR（`latest` 标签）。
 
 ## Web 换源说明
 
