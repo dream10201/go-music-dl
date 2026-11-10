@@ -307,7 +307,7 @@ func FetchDecryptedSodaAudio(song *model.Song) ([]byte, error) {
 
 // FetchDecryptedMiguAudio downloads a Migu stream and decrypts Z3D output.
 func FetchDecryptedMiguAudio(song *model.Song) ([]byte, error) {
-	miguInst := migu.New(CM.Get("migu"))
+	miguInst := migu.New(CM.Get("migu")).WithUID(CM.Get("migu_uid"))
 	info, err := miguInst.GetDownloadInfo(song)
 	if err != nil {
 		return nil, err

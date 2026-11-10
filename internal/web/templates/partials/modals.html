@@ -353,6 +353,16 @@
                     {{ end }}
                     {{ end }}
                 </div>
+                <div class="settings-panel-subtitle">咪咕会员下载（账号 uid）</div>
+                <p class="settings-panel-hint">
+                    咪咕会员歌曲的下载权益按账号 <code>uid</code> 判定，与网页 Cookie 无关：填入你的咪咕账号用户ID 即可下载会员歌曲，<strong>该 uid 稳定不过期，无需刷新</strong>。uid 可在咪咕 App「我的」页或账号资料中查看（一串纯数字）。
+                </p>
+                <div class="cookie-item">
+                    <label>咪咕 uid</label>
+                    <div class="cookie-input-row">
+                        <input type="text" id="cookie-migu_uid" placeholder="在此填写咪咕账号用户ID（纯数字）..." inputmode="numeric">
+                    </div>
+                </div>
                 <div class="settings-panel-subtitle">汽水音乐整曲取流（会员音质）</div>
                 <p class="settings-panel-hint">
                     汽水会员曲目的整曲流走 App 端点，需要 Cookie + 应用级签名头（x-helios / x-medusa）。
@@ -558,9 +568,11 @@
                     </div>
                     <div class="utility-modal-actions queue-toolbar-actions">
                         <button type="button" class="btn-pill queue-refresh" onclick="loadDownloadQueue()"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i> 刷新</button>
+                        <button type="button" id="download-queue-pause-toggle" class="btn-pill" onclick="toggleDownloadQueuePause()"><i class="fa-solid fa-pause" aria-hidden="true"></i> 暂停全部</button>
                         <button type="button" class="btn-pill btn-pill-danger" onclick="clearDownloadQueue()"><i class="fa-solid fa-trash-can" aria-hidden="true"></i> 清空任务</button>
                     </div>
                 </div>
+                <div id="download-queue-pause-banner" class="queue-pause-banner" role="status" hidden></div>
                 <p class="queue-note">关闭此面板不会停止下载。重启应用后自动恢复等待任务；此处显示任务状态和总体进度。</p>
                 <p id="download-queue-error" role="status"></p>
                 <div id="download-queue-list" class="utility-modal-list"></div>

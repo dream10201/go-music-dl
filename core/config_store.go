@@ -553,6 +553,30 @@ func SaveWebSettings(settings WebSettings) error {
 	}).Error
 }
 
+// GetConfigValue reads a raw string value from the shared config key-value
+// store. A missing key returns an empty string without error.
+func GetConfigValue(key string) (string, error) {
+	if err := ensureConfigDB(); err != nil {
+		return "", err
+	}
+	var row configKV
+	if err := configDB.Where("key = ?", key).Limit(1).Find(&row).Error; err != nil {
+		return "", err
+	}
+	return row.Value, nil
+}
+
+// SetConfigValue writes a raw string value into the shared config key-value store.
+func SetConfigValue(key, value string) error {
+	if err := ensureConfigDB(); err != nil {
+		return err
+	}
+	return configDB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
+	}).Create(&configKV{Key: key, Value: value}).Error
+}
+
 func GetWebAuthSettings() (WebAuthSettings, error) {
 	settings := defaultWebAuthSettings()
 	if err := ensureConfigDB(); err != nil {

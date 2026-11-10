@@ -209,7 +209,7 @@ func getDownloadFunc(source string) func(*model.Song) (string, error) {
 	case "kuwo":
 		return kuwo.New(c).GetDownloadURL
 	case "migu":
-		return migu.New(c).GetDownloadURL
+		return migu.New(c).WithUID(cm.Get("migu_uid")).GetDownloadURL
 	case "soda":
 		return core.NewSodaClient(c).GetDownloadURL
 	case "bilibili":

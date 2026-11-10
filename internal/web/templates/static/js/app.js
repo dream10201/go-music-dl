@@ -5157,6 +5157,8 @@ let downloadQueueLoading = false;
 let downloadQueueLastPoll = 0;
 let downloadQueueRenderKey = "";
 let downloadQueueFilter = "";
+let downloadQueuePaused = false;
+let downloadQueuePauseReason = "";
 let downloadManagerTab = "queue";
 
 function createDownloadRequestID() {
@@ -5268,6 +5270,47 @@ async function clearDownloadDedup() {
   } catch (err) { showToast("清空失败", err.message, "error", downloadNoticeDuration()); }
 }
 
+function updateDownloadQueuePauseUI(pause) {
+  const state = pause || {};
+  const paused = !!state.paused;
+  const wasPaused = downloadQueuePaused;
+  downloadQueuePaused = paused;
+  downloadQueuePauseReason = state.reason || "";
+  const toggle = document.getElementById("download-queue-pause-toggle");
+  if (toggle) {
+    toggle.innerHTML = paused
+      ? '<i class="fa-solid fa-play" aria-hidden="true"></i> 继续下载'
+      : '<i class="fa-solid fa-pause" aria-hidden="true"></i> 暂停全部';
+    toggle.classList.toggle("queue-resume", paused);
+  }
+  const banner = document.getElementById("download-queue-pause-banner");
+  if (banner) {
+    if (paused) {
+      banner.hidden = false;
+      banner.textContent = state.message || "下载已暂停。";
+      banner.classList.toggle("queue-pause-banner-auth", state.reason === "auth");
+    } else {
+      banner.hidden = true;
+      banner.textContent = "";
+    }
+  }
+  // Surface an auto-pause even when the panel is closed: the poller keeps running.
+  if (paused && !wasPaused && state.reason === "auth") {
+    showToast("下载已自动暂停", state.message || "登录凭据已失效。", "error", 8000);
+  }
+}
+
+async function toggleDownloadQueuePause() {
+  const resume = downloadQueuePaused;
+  try {
+    const response = await fetch(`${API_ROOT}/api/downloads/${resume ? "resume" : "pause"}`, {method:"POST", headers:{"X-Requested-With":"XMLHttpRequest"}});
+    const data = await response.json();
+    if (!response.ok || data.error) throw new Error(data.error || "操作失败");
+    updateDownloadQueuePauseUI(data.pause);
+    await loadDownloadQueue();
+  } catch (error) { showToast("队列操作失败", error.message, "error", downloadNoticeDuration()); }
+}
+
 async function loadDownloadQueue(page = downloadQueuePage) {
   if (downloadQueueLoading) return;
   downloadQueueLoading = true;
@@ -5285,6 +5328,7 @@ async function loadDownloadQueue(page = downloadQueuePage) {
     const finished = (c.success || 0) + (c.skipped || 0) + (c.failed || 0) + (c.canceled || 0);
     const total = active + finished;
     setDownloadRecordsButtonState(active ? "downloading" : "idle");
+    updateDownloadQueuePauseUI(data.pause);
     const badge = document.getElementById("download-queue-badge");
     if (badge) { badge.textContent = active > 999 ? "999+" : active; badge.hidden = !active; }
     if (summary) summary.innerHTML = `<div class="queue-overview"><strong>${finished}<small> / ${total} 已处理</small></strong><span>下载中 ${c.downloading || 0} · 等待 ${c.waiting || 0}</span></div><progress max="${total || 1}" value="${finished}" aria-label="队列总体进度"></progress><div class="queue-outcomes">成功 ${c.success || 0} · 跳过 ${c.skipped || 0} · 失败 ${c.failed || 0} · 已取消 ${c.canceled || 0}</div>`;

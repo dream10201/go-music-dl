@@ -47,8 +47,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8 h1:OtSeLS5y0Uy01jaKK4mA/WVIYtpzVm63vLVAPzJXigg=
 github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8/go.mod h1:apkPC/CR3s48O2D7Y++n1XWEpgPNNCjXYga3PPbJe2E=
-github.com/dream10201/music-lib v1.1.2-0.20261110020443-3676b5f1c633 h1:yywAFG4Cx4z5ydNq8aTjwjQQngWG5mbFOXxw3e0OERo=
-github.com/dream10201/music-lib v1.1.2-0.20261110020443-3676b5f1c633/go.mod h1:hWXbpQZoeb9wVW0Q60iC41f6lOECq8Vr6FdU+QpK2Xw=
+github.com/dream10201/music-lib v1.1.2-0.20261110063918-d9f350a9c548 h1:35mYx170EiuvU7PKQHFcV+h2ZM2TjVxB6sH6S+S1hmE=
+github.com/dream10201/music-lib v1.1.2-0.20261110063918-d9f350a9c548/go.mod h1:hWXbpQZoeb9wVW0Q60iC41f6lOECq8Vr6FdU+QpK2Xw=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f h1:Y/CXytFA4m6baUTXGLOoWe4PQhGxaX0KpnayAqC48p4=

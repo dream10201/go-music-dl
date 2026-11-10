@@ -66,6 +66,24 @@ type DownloadQueue struct {
 	startErr error
 	mu       sync.Mutex
 	done     chan struct{}
+
+	pauseMu sync.RWMutex
+	pause   PauseState
+}
+
+const downloadQueuePauseKey = "download_queue_pause"
+
+// PauseReasonAuth marks a pause triggered automatically when a source rejected a
+// download for lack of a valid login credential, as opposed to a manual pause.
+const PauseReasonAuth = "auth"
+
+// PauseState describes whether the download worker is suspended and why.
+type PauseState struct {
+	Paused  bool   `json:"paused"`
+	Reason  string `json:"reason,omitempty"`  // machine code, e.g. "auth" or "manual"
+	Source  string `json:"source,omitempty"`  // music source that triggered an auto-pause
+	Message string `json:"message,omitempty"` // human-readable explanation for the UI
+	At      int64  `json:"at,omitempty"`      // unix millis when the pause began
 }
 
 func OpenDownloadQueue() (*DownloadQueue, error) {
@@ -199,6 +217,83 @@ func (q *DownloadQueue) Clear() error {
 	})
 }
 
+// loadPauseState restores the persisted pause flag so a credential-expiry pause
+// survives a restart instead of silently resuming failing downloads.
+func (q *DownloadQueue) loadPauseState() {
+	value, err := GetConfigValue(downloadQueuePauseKey)
+	if err != nil || strings.TrimSpace(value) == "" {
+		return
+	}
+	var state PauseState
+	if json.Unmarshal([]byte(value), &state) == nil {
+		q.pauseMu.Lock()
+		q.pause = state
+		q.pauseMu.Unlock()
+	}
+}
+
+// PauseState returns the current pause flag and reason.
+func (q *DownloadQueue) PauseState() PauseState {
+	q.pauseMu.RLock()
+	defer q.pauseMu.RUnlock()
+	return q.pause
+}
+
+func (q *DownloadQueue) setPause(state PauseState) {
+	q.pauseMu.Lock()
+	q.pause = state
+	q.pauseMu.Unlock()
+	if data, err := json.Marshal(state); err == nil {
+		_ = SetConfigValue(downloadQueuePauseKey, string(data))
+	}
+}
+
+// Pause suspends the worker. reason/source/message are stored for the UI; an
+// empty reason defaults to a manual pause.
+func (q *DownloadQueue) Pause(reason, source, message string) {
+	if strings.TrimSpace(reason) == "" {
+		reason = "manual"
+	}
+	q.setPause(PauseState{Paused: true, Reason: reason, Source: source, Message: message, At: time.Now().UnixMilli()})
+}
+
+// Resume clears the pause flag so the worker resumes claiming tasks.
+func (q *DownloadQueue) Resume() {
+	q.setPause(PauseState{Paused: false})
+}
+
+// pauseForAuth suspends the worker after a source rejected a download for lack
+// of a valid credential. It only overwrites an existing pause when not already
+// paused, so a manual pause reason is not clobbered.
+func (q *DownloadQueue) pauseForAuth(source, message string) {
+	q.pauseMu.RLock()
+	already := q.pause.Paused
+	q.pauseMu.RUnlock()
+	if already {
+		return
+	}
+	q.Pause(PauseReasonAuth, source, message)
+}
+
+func (q *DownloadQueue) isPaused() bool {
+	q.pauseMu.RLock()
+	defer q.pauseMu.RUnlock()
+	return q.pause.Paused
+}
+
+// requeue returns an in-flight task to the waiting state without counting it as
+// a failure, so a task interrupted by an auto-pause is retried after resume.
+func (q *DownloadQueue) requeue(id uint) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ? AND removed = ?", id, true).Delete(&DownloadTask{}).Error; err != nil {
+			return err
+		}
+		return tx.Model(&DownloadTask{}).Where("id = ? AND status = ?", id, TaskDownloading).Updates(map[string]interface{}{"status": TaskWaiting, "error": "", "attempts": gorm.Expr("attempts - 1")}).Error
+	})
+}
+
 func (q *DownloadQueue) recoverInterrupted() error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -266,12 +361,13 @@ func processDownloadTask(process DownloadTaskProcessor, input DownloadTaskInput)
 
 // processWithRetry retries a failed download up to downloadRetryLimit times and
 // returns how many retries were made. A song the source reports as unavailable
-// is not retried.
+// is not retried; neither is a missing-credential error, which retrying cannot
+// fix and which instead pauses the whole queue.
 func processWithRetry(ctx context.Context, process DownloadTaskProcessor, input DownloadTaskInput, delay time.Duration) (DownloadTaskResult, error, int) {
 	retries := 0
 	for {
 		result, err := processDownloadTask(process, input)
-		if err == nil || retries >= downloadRetryLimit || ctx.Err() != nil || errors.Is(err, migu.ErrUnavailable) {
+		if err == nil || retries >= downloadRetryLimit || ctx.Err() != nil || errors.Is(err, migu.ErrUnavailable) || errors.Is(err, migu.ErrAuthRequired) {
 			return result, err, retries
 		}
 		retries++
@@ -290,6 +386,7 @@ func (q *DownloadQueue) Start(ctx context.Context, process DownloadTaskProcessor
 		if q.startErr = q.recoverInterrupted(); q.startErr != nil {
 			return
 		}
+		q.loadPauseState()
 		go func() {
 			defer close(q.done)
 			ticker := time.NewTicker(time.Second)
@@ -297,6 +394,14 @@ func (q *DownloadQueue) Start(ctx context.Context, process DownloadTaskProcessor
 			for {
 				if ctx.Err() != nil {
 					return
+				}
+				if q.isPaused() {
+					select {
+					case <-ctx.Done():
+						return
+					case <-ticker.C:
+					}
+					continue
 				}
 				task, err := q.claim()
 				if err == nil {
@@ -306,6 +411,13 @@ func (q *DownloadQueue) Start(ctx context.Context, process DownloadTaskProcessor
 					retries := 0
 					if err == nil {
 						result, err, retries = processWithRetry(ctx, process, input, downloadRetryDelay)
+					}
+					if err != nil && errors.Is(err, migu.ErrAuthRequired) {
+						q.pauseForAuth(input.Song.Source, "咪咕账号登录凭据已失效或未配置，已自动暂停全部下载。请在设置中填写有效的咪咕账号 uid 后恢复下载。")
+						if requeueErr := q.requeue(task.ID); requeueErr != nil {
+							log.Printf("requeue paused download task %d: %v", task.ID, requeueErr)
+						}
+						continue
 					}
 					for {
 						if saveErr := q.finish(task.ID, result, err, retries); saveErr == nil {

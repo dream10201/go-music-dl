@@ -94,7 +94,7 @@ func PreparePlaybackSource(song *model.Song) (playURL string, tempFile string, e
 	}
 
 	if song.Source == "migu" {
-		info, infoErr := migu.New(CM.Get("migu")).GetDownloadInfo(song)
+		info, infoErr := migu.New(CM.Get("migu")).WithUID(CM.Get("migu_uid")).GetDownloadInfo(song)
 		if infoErr != nil {
 			return "", "", infoErr
 		}

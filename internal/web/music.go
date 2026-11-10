@@ -1174,7 +1174,7 @@ func RegisterMusicRoutes(api, configAPI *gin.RouterGroup) {
 
 		var downloadUrl string
 		if source == "migu" {
-			info, err := migu.New(core.CM.Get("migu")).GetDownloadInfo(tempSong)
+			info, err := migu.New(core.CM.Get("migu")).WithUID(core.CM.Get("migu_uid")).GetDownloadInfo(tempSong)
 			if err != nil {
 				c.String(404, "Failed to get URL")
 				return

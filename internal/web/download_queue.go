@@ -37,7 +37,23 @@ func RegisterDownloadQueueRoutes(api *gin.RouterGroup, queue *core.DownloadQueue
 			c.JSON(500, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(200, gin.H{"tasks": tasks, "total": total, "counts": counts, "page": page, "total_pages": (total + 49) / 50})
+		c.JSON(200, gin.H{"tasks": tasks, "total": total, "counts": counts, "page": page, "total_pages": (total + 49) / 50, "pause": queue.PauseState()})
+	})
+	api.POST("/api/downloads/pause", func(c *gin.Context) {
+		if !allowSameOriginWrite(c) {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+		queue.Pause("manual", "", "下载已手动暂停。")
+		c.JSON(200, gin.H{"status": "ok", "pause": queue.PauseState()})
+	})
+	api.POST("/api/downloads/resume", func(c *gin.Context) {
+		if !allowSameOriginWrite(c) {
+			c.JSON(403, gin.H{"error": "forbidden"})
+			return
+		}
+		queue.Resume()
+		c.JSON(200, gin.H{"status": "ok", "pause": queue.PauseState()})
 	})
 	api.POST("/api/downloads/queue", func(c *gin.Context) {
 		if !allowSameOriginWrite(c) {

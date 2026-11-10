@@ -167,6 +167,106 @@ func TestDownloadQueueAppendCancelRetryAndWorker(t *testing.T) {
 		t.Fatal(seen)
 	}
 }
+func TestDownloadQueueAutoPausesOnAuthErrorAndResumes(t *testing.T) {
+	q := testDownloadQueue(t)
+	inputs := queueInputs(2)
+	for i := range inputs {
+		inputs[i].Song.Source = "migu"
+	}
+	if n, err := q.Enqueue("auth", inputs); err != nil || n != 2 {
+		t.Fatalf("enqueue %d: %v", n, err)
+	}
+
+	var mu sync.Mutex
+	var succeeded int
+	failAuth := true
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := q.Start(ctx, func(DownloadTaskInput) (DownloadTaskResult, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if failAuth {
+			return DownloadTaskResult{}, fmt.Errorf("%w: 请先登录", migu.ErrAuthRequired)
+		}
+		succeeded++
+		return DownloadTaskResult{Status: DownloadStatusSuccess}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The first auth failure must pause the queue, not fail the task.
+	deadline := time.Now().Add(5 * time.Second)
+	for !q.PauseState().Paused {
+		if time.Now().After(deadline) {
+			t.Fatal("queue did not auto-pause on auth error")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got := q.PauseState().Reason; got != PauseReasonAuth {
+		t.Fatalf("pause reason = %q, want %q", got, PauseReasonAuth)
+	}
+	_, _, counts, err := q.List(1, 50, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if counts[DownloadStatusFailed] != 0 {
+		t.Fatalf("auth error must not fail tasks, failed=%d", counts[DownloadStatusFailed])
+	}
+	if counts[TaskWaiting] != 2 {
+		t.Fatalf("both tasks should remain waiting, waiting=%d", counts[TaskWaiting])
+	}
+
+	// Fix the credential and resume: tasks should now complete.
+	mu.Lock()
+	failAuth = false
+	mu.Unlock()
+	q.Resume()
+	deadline = time.Now().Add(5 * time.Second)
+	for {
+		_, _, counts, err := q.List(1, 50, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if counts[DownloadStatusSuccess] == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("tasks did not complete after resume: %v", counts)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestDownloadQueueManualPauseBlocksClaiming(t *testing.T) {
+	q := testDownloadQueue(t)
+	if n, err := q.Enqueue("manual", queueInputs(3)); err != nil || n != 3 {
+		t.Fatalf("enqueue %d: %v", n, err)
+	}
+	q.Pause("manual", "", "paused")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := q.Start(ctx, func(DownloadTaskInput) (DownloadTaskResult, error) {
+		return DownloadTaskResult{Status: DownloadStatusSuccess}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(200 * time.Millisecond)
+	if _, _, counts, _ := q.List(1, 50, ""); counts[TaskWaiting] != 3 {
+		t.Fatalf("paused queue must not process, waiting=%d", counts[TaskWaiting])
+	}
+	q.Resume()
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		if _, _, counts, _ := q.List(1, 50, ""); counts[DownloadStatusSuccess] == 3 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("resume did not drain queue")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestDownloadQueuePanicIsAFailedTask(t *testing.T) {
 	_, err := processDownloadTask(func(DownloadTaskInput) (DownloadTaskResult, error) { panic("provider crashed") }, DownloadTaskInput{})
 	if err == nil {
