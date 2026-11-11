@@ -2,12 +2,14 @@ package core
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/guohuiyuan/go-music-dl/lib/migu"
 	"github.com/guohuiyuan/go-music-dl/lib/model"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -622,7 +624,11 @@ func DownloadWithDedupCheckWithTemplate(song *model.Song, outDir string, withCov
 		result, dlErr = SaveSongToFileWithTemplate(song, outDir, withCover, withLyrics, filenameTemplate)
 	}
 	if dlErr != nil {
-		_ = saveFailedDownloadRecord(song, withCover, dlErr.Error())
+		if errors.Is(dlErr, migu.ErrUnavailable) {
+			_ = SaveDownloadRecord(song.Name, song.Artist, song.Source, DownloadStatusSkipped, dlErr.Error())
+		} else {
+			_ = saveFailedDownloadRecord(song, withCover, dlErr.Error())
+		}
 		return result, dlErr
 	}
 

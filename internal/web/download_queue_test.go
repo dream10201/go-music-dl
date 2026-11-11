@@ -3,9 +3,11 @@ package web
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -180,5 +182,37 @@ func TestDedupRoutesListAndForget(t *testing.T) {
 	}
 	if w := do("GET", "", nil); !bytes.Contains(w.Body.Bytes(), []byte(`"total":0`)) {
 		t.Fatal(w.Body.String())
+	}
+}
+
+type queueRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f queueRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+func TestQueuedDownloadSkipsUnavailableMiguSong(t *testing.T) {
+	if err := core.CloseConfigDB(); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("MUSIC_DL_CONFIG_DB", filepath.Join(t.TempDir(), "settings.db"))
+	t.Cleanup(func() { _ = core.CloseConfigDB() })
+	transport := http.DefaultTransport
+	defer func() { http.DefaultTransport = transport }()
+	http.DefaultTransport = queueRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		body := `{"code":"440000","info":"应版权方要求，该内容已经无法提供"}`
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})
+
+	song := model.Song{Source: "migu", ID: "content|2|SQ", Name: "Removed", Artist: "Artist"}
+	result, err := processQueuedDownload(core.DownloadTaskInput{Song: song, Directory: t.TempDir()})
+	if err != nil || result.Status != core.DownloadStatusSkipped || !strings.Contains(result.Warning, "440000") {
+		t.Fatalf("result = %+v, err = %v, want skipped", result, err)
+	}
+	inputs, err := core.FailedDownloadRetryInputs()
+	if err != nil || len(inputs) != 0 {
+		t.Fatalf("retry inputs = %d, err = %v, want none", len(inputs), err)
+	}
+	_, _, counts, err := core.GetDownloadRecordPage(1, 10, "")
+	if err != nil || counts[core.DownloadStatusSkipped] != 1 {
+		t.Fatalf("counts = %v, err = %v, want one skipped record", counts, err)
 	}
 }

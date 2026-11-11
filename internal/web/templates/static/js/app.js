@@ -3301,7 +3301,7 @@ async function loadDownloadQueue(page = downloadQueuePage) {
     const renderKey = JSON.stringify([data.page, downloadQueueFilter, data.tasks]);
     if (list && renderKey !== downloadQueueRenderKey) {
       downloadQueueRenderKey = renderKey;
-      const labels = {waiting:"等待下载", downloading:"正在下载", success:"下载成功", skipped:"已下载，跳过", failed:"下载失败", canceled:"已取消"};
+      const labels = {waiting:"等待下载", downloading:"正在下载", success:"下载成功", skipped:"已跳过", failed:"下载失败", canceled:"已取消"};
       list.innerHTML = (data.tasks || []).map(task => {
         const action = task.Status === "waiting" ? `<button type="button" class="btn-pill queue-secondary-action" onclick="downloadQueueAction(${task.ID},'cancel')">取消</button>` : ["failed","canceled"].includes(task.Status) ? `<button type="button" class="btn-pill queue-secondary-action" onclick="downloadQueueAction(${task.ID},'retry')">重试</button>` : "";
         return `<article class="queue-task"><div class="queue-task-main"><strong>${escapeHtml(task.Name || "未知歌曲")}</strong><span>${escapeHtml(task.Artist || "未知歌手")} · ${escapeHtml(task.Source)}</span><small>${escapeHtml(task.Error || task.Warning || task.Path || task.Directory || "")}</small></div><div class="queue-task-action"><span class="queue-status queue-status-${escapeHtml(task.Status)}">${labels[task.Status] || "未知状态"}</span><div class="queue-task-buttons">${action}<button type="button" class="queue-delete-button" onclick="removeDownloadQueueTask(${task.ID})" title="删除任务" aria-label="删除任务：${escapeHtml(task.Name || "未知歌曲")}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button></div></div></article>`;

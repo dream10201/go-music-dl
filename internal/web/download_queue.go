@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/guohuiyuan/go-music-dl/core"
+	"github.com/guohuiyuan/go-music-dl/lib/migu"
 	"github.com/guohuiyuan/go-music-dl/lib/model"
 )
 
@@ -206,6 +208,9 @@ func processQueuedDownload(input core.DownloadTaskInput) (core.DownloadTaskResul
 	}
 	song := input.Song
 	result, err := core.DownloadWithDedupCheckWithTemplate(&song, input.Directory, input.Embed, input.Embed, input.FilenameTemplate, index)
+	if errors.Is(err, migu.ErrUnavailable) {
+		return core.DownloadTaskResult{Status: core.DownloadStatusSkipped, Warning: err.Error()}, nil
+	}
 	if err != nil {
 		return core.DownloadTaskResult{}, err
 	}

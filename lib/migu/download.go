@@ -75,6 +75,10 @@ var ErrAuthRequired = errors.New("migu login required")
 // simply not being a member of the required tier.
 const miguAuthCannotCode = "440006"
 
+// miguContentRemovedCode is the listen API code for content withdrawn at the
+// rights holder's request.
+const miguContentRemovedCode = "440000"
+
 // DownloadInfo describes a Migu audio stream. Z3D streams require
 // DecryptAudio with FileKey before they can be played or saved as audio.
 type DownloadInfo struct {
@@ -176,7 +180,7 @@ func (m *Migu) GetDownloadInfo(song *model.Song) (*DownloadInfo, error) {
 		return nil, ErrUnavailable
 	}
 	if fetchErr != nil {
-		return nil, fmt.Errorf("migu returned no accessible download quality: %w", fetchErr)
+		return nil, fmt.Errorf("migu returned no accessible download quality: %v", fetchErr)
 	}
 	return nil, errors.New("migu returned no accessible download quality")
 }
@@ -274,6 +278,9 @@ func (m *Migu) fetchListenInfo(contentID, copyrightID, songID, albumID, resource
 	var result miguListenResponse
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("migu listen response json parse error: %w", err)
+	}
+	if result.Code == miguContentRemovedCode {
+		return nil, fmt.Errorf("%w: %s (code %s)", ErrUnavailable, result.Info, result.Code)
 	}
 	if result.Code != "" && result.Code != "000000" {
 		return nil, fmt.Errorf("migu api error: %s (code %s)", result.Info, result.Code)

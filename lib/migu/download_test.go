@@ -362,4 +362,11 @@ func TestGetDownloadInfoUnavailable(t *testing.T) {
 	if err == nil || errors.Is(err, ErrUnavailable) {
 		t.Fatalf("err = %v, want a retryable error when a listen request failed", err)
 	}
+
+	failTone = ""
+	refused = `{"code":"440000","info":"应版权方要求，该内容已经无法提供"}`
+	_, err = New("").GetDownloadInfo(song)
+	if !errors.Is(err, ErrUnavailable) || !strings.Contains(err.Error(), "应版权方要求") {
+		t.Fatalf("err = %v, want ErrUnavailable for code 440000", err)
+	}
 }
